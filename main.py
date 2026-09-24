@@ -17,9 +17,13 @@ def test_api():
     print("TEST API-FOOTBALL")
     print("===================================")
 
-    if not API_KEY:
-        print("❌ CHƯA CÓ API_FOOTBALL_KEY")
-        return
+if not API_KEY:
+    print("❌ CHƯA CÓ API_FOOTBALL_KEY")
+    print("API_FOOTBALL_KEY = NOT FOUND")
+    return
+
+print("✅ RAILWAY ĐÃ NHẬN API_FOOTBALL_KEY")
+print("API KEY LENGTH:", len(API_KEY))
 
     # Kiểm tra tài khoản / quota
     print("\n[1] Kiểm tra API status...")
