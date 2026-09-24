@@ -436,13 +436,7 @@ def analyze_match(match):
     )
 
 
-    # --------------------------
-    # EVENTS
-    # --------------------------
 
-    events = get_events(
-        fixture_id
-    )
 
 
     # --------------------------
