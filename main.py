@@ -523,14 +523,13 @@ def analyze_match(match):
     )
 
 
-    # --------------------------
-    # RECENT GOAL
-    # --------------------------
+   # --------------------------
+# RECENT GOAL
+# Tạm thời chưa gọi Events để tiết kiệm API
+# --------------------------
 
-    recent_goal, last_goal = get_recent_goal(
-        events,
-        minute
-    )
+recent_goal = False
+last_goal = None
 
 
     # --------------------------
