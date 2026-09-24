@@ -22,7 +22,48 @@ CHECK_INTERVAL = 60
 # Chống gửi trùng:
 # Mỗi trận chỉ gửi 1 cảnh báo trong một lần chạy bot
 sent_alerts = set()
+# ==============================
+# LỊCH SỬ TÌNH HUỐNG
+# ==============================
 
+HISTORY_FILE = "history.json"
+
+
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
+
+    try:
+        import json
+
+        with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    except Exception as e:
+        print("HISTORY LOAD ERROR:", e)
+        return []
+
+
+def save_history(history):
+
+    try:
+        import json
+
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(
+                history,
+                f,
+                ensure_ascii=False,
+                indent=2
+            )
+
+    except Exception as e:
+        print("HISTORY SAVE ERROR:", e)
+
+
+history_data = load_history()
+
+print("HISTORY RECORDS:", len(history_data))
 
 # ==============================
 # API FOOTBALL
