@@ -15,36 +15,16 @@ HEADERS = {
 
 CHECK_INTERVAL = 60
 
+# Mỗi trận chỉ gửi 1 cảnh báo
 sent_alerts = set()
 
 
-def send_telegram(message):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    data = {
-        "chat_id": CHAT_ID,
-        "text": message
-    }
-
-    try:
-        r = requests.post(url, data=data, timeout=15)
-        print("TELEGRAM:", r.status_code, r.text)
-    except Exception as e:
-        print("TELEGRAM ERROR:", e)
-
-
-def get_live_matches():
-    url = f"{API_URL}/fixtures"
-
-    params = {
-        "live": "all"
-    }
-
+def api_get(endpoint, params=None):
     try:
         r = requests.get(
-            url,
+            f"{API_URL}/{endpoint}",
             headers=HEADERS,
-            params=params,
+            params=params or {},
             timeout=20
         )
 
@@ -59,68 +39,281 @@ def get_live_matches():
         return data.get("response", [])
 
     except Exception as e:
-        print("API ERROR:", e)
+        print("API REQUEST ERROR:", e)
         return []
 
 
+def send_telegram(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
+    try:
+        r = requests.post(
+            url,
+            data={
+                "chat_id": CHAT_ID,
+                "text": message
+            },
+            timeout=15
+        )
+
+        print("TELEGRAM:", r.status_code)
+
+    except Exception as e:
+        print("TELEGRAM ERROR:", e)
+
+
+def get_live_matches():
+    return api_get(
+        "fixtures",
+        {"live": "all"}
+    )
+
+
+def get_events(fixture_id):
+    return api_get(
+        "fixtures/events",
+        {"fixture": fixture_id}
+    )
+
+
+def get_statistics(fixture_id):
+    return api_get(
+        "fixtures/statistics",
+        {"fixture": fixture_id}
+    )
+
+
+def stat_value(stats, team_name, stat_type):
+
+    for team_data in stats:
+
+        team = team_data.get("team", {}).get("name")
+
+        if team != team_name:
+            continue
+
+        for item in team_data.get("statistics", []):
+
+            if item.get("type") == stat_type:
+
+                value = item.get("value")
+
+                if value is None:
+                    return 0
+
+                if isinstance(value, str):
+                    value = value.replace("%", "")
+
+                try:
+                    return float(value)
+                except:
+                    return 0
+
+    return 0
+
+
+def calculate_signal(
+    minute,
+    total_goals,
+    total_shots,
+    shots_on_target,
+    corners,
+    recent_goal
+):
+
+    score = 0
+
+    # Phút thi đấu
+    if 55 <= minute <= 85:
+        score += 20
+
+    elif 45 <= minute < 55:
+        score += 10
+
+    # Đã có bàn
+    if total_goals >= 2:
+        score += 15
+
+    elif total_goals == 1:
+        score += 10
+
+    # Tổng cú sút
+    if total_shots >= 25:
+        score += 20
+
+    elif total_shots >= 18:
+        score += 15
+
+    elif total_shots >= 12:
+        score += 8
+
+    # Sút trúng đích
+    if shots_on_target >= 10:
+        score += 20
+
+    elif shots_on_target >= 7:
+        score += 15
+
+    elif shots_on_target >= 5:
+        score += 8
+
+    # Phạt góc
+    if corners >= 10:
+        score += 15
+
+    elif corners >= 7:
+        score += 10
+
+    elif corners >= 5:
+        score += 5
+
+    # Có bàn gần đây
+    if recent_goal:
+        score += 10
+
+    return min(score, 100)
+
+
+def get_recent_goal(events, minute):
+
+    goal_minutes = []
+
+    for event in events:
+
+        if event.get("type") != "Goal":
+            continue
+
+        elapsed = event.get("time", {}).get("elapsed")
+
+        if elapsed is None:
+            continue
+
+        try:
+            goal_minutes.append(int(elapsed))
+        except:
+            pass
+
+    if not goal_minutes:
+        return False, None
+
+    last_goal = max(goal_minutes)
+
+    # Bàn trong 15 phút gần nhất
+    recent = (minute - last_goal) <= 15
+
+    return recent, last_goal
+
+
 def analyze_match(match):
-    fixture = match["fixture"]
-    teams = match["teams"]
-    goals = match["goals"]
 
-    fixture_id = fixture["id"]
+    fixture = match.get("fixture", {})
+    teams = match.get("teams", {})
+    goals = match.get("goals", {})
 
-    home = teams["home"]["name"]
-    away = teams["away"]["name"]
+    fixture_id = fixture.get("id")
 
-    home_goals = goals["home"] or 0
-    away_goals = goals["away"] or 0
+    home = teams.get("home", {}).get("name", "Home")
+    away = teams.get("away", {}).get("name", "Away")
 
-    minute = fixture["status"].get("elapsed") or 0
+    home_goals = goals.get("home") or 0
+    away_goals = goals.get("away") or 0
+
+    minute = fixture.get("status", {}).get("elapsed") or 0
 
     total_goals = home_goals + away_goals
 
-    # Bộ lọc thử nghiệm đầu tiên
-    signal = False
-
-    if minute >= 55 and minute <= 85:
-        if total_goals >= 1:
-            signal = True
-
-    if not signal:
-        return
-
-alert_key = fixture_id
-
-if alert_key in sent_alerts:
-    return
-
-sent_alerts.add(alert_key)
-
-    message = (
-        "🚨 BETING · LIVE SIGNAL\n\n"
-        f"⚽ {home} vs {away}\n"
-        f"⏱ Phút: {minute}'\n"
-        f"🔢 Tỷ số: {home_goals}-{away_goals}\n"
-        f"🔥 Tổng bàn: {total_goals}\n\n"
-        "📊 Tín hiệu: CÓ THỂ CÒN BÀN\n"
-        "⚠️ Đây là tín hiệu thống kê, không đảm bảo kết quả."
-    )
-
-    send_telegram(message)
-
     print(
-        f"SIGNAL: {home} vs {away} "
+        f"ANALYZING: {home} vs {away} "
         f"{home_goals}-{away_goals} "
         f"minute={minute}"
     )
 
+    events = get_events(fixture_id)
+    stats = get_statistics(fixture_id)
+
+    # Nếu API chưa trả statistics
+    if not stats:
+        print("NO STATISTICS:", fixture_id)
+        return
+
+    total_shots = (
+        stat_value(stats, home, "Total Shots")
+        + stat_value(stats, away, "Total Shots")
+    )
+
+    shots_on_target = (
+        stat_value(stats, home, "Shots on Goal")
+        + stat_value(stats, away, "Shots on Goal")
+    )
+
+    corners = (
+        stat_value(stats, home, "Corner Kicks")
+        + stat_value(stats, away, "Corner Kicks")
+    )
+
+    recent_goal, last_goal = get_recent_goal(
+        events,
+        minute
+    )
+
+    signal = calculate_signal(
+        minute=minute,
+        total_goals=total_goals,
+        total_shots=total_shots,
+        shots_on_target=shots_on_target,
+        corners=corners,
+        recent_goal=recent_goal
+    )
+
+    print(
+        f"SIGNAL SCORE: {signal}/100 | "
+        f"shots={total_shots} | "
+        f"sot={shots_on_target} | "
+        f"corners={corners} | "
+        f"last_goal={last_goal}"
+    )
+
+    # Chỉ cảnh báo từ 75 điểm
+    if signal < 75:
+        return
+
+    # Mỗi trận chỉ cảnh báo một lần
+    if fixture_id in sent_alerts:
+        return
+
+    sent_alerts.add(fixture_id)
+
+    if signal >= 85:
+        level = "🔥🔥 RẤT CAO"
+
+    else:
+        level = "🔥 CAO"
+
+    message = (
+        "🚨 BETING · GOAL SIGNAL\n\n"
+        f"⚽ {home} vs {away}\n"
+        f"⏱ Phút: {minute}'\n"
+        f"🔢 Tỷ số: {home_goals}-{away_goals}\n\n"
+        f"🔥 SIGNAL: {signal}/100\n"
+        f"📊 Sút: {int(total_shots)}\n"
+        f"🎯 SOT: {int(shots_on_target)}\n"
+        f"🚩 Góc: {int(corners)}\n"
+        f"⚽ Bàn gần nhất: "
+        f"{str(last_goal) + \"'\" if last_goal else \"Chưa có\"}\n\n"
+        f"{level}\n"
+        "📌 Đánh giá: KHẢ NĂNG CÒN BÀN\n\n"
+        "⚠️ Đây là tín hiệu thống kê, "
+        "không đảm bảo kết quả."
+    )
+
+    send_telegram(message)
+
 
 def main():
 
-    print("================================")
-    print("      BETING BOT STARTED")
-    print("================================")
+    print("==============================")
+    print("       BETING BOT STARTED")
+    print("==============================")
 
     if not API_KEY:
         print("ERROR: API_FOOTBALL_KEY NOT FOUND")
@@ -134,11 +327,15 @@ def main():
         print("ERROR: TELEGRAM_CHAT_ID NOT FOUND")
         return
 
-    send_telegram("🟢 BETING BOT đã khởi động!")
+    send_telegram(
+        "🟢 BETING v2 đã khởi động!\n"
+        "Live analysis + statistics"
+    )
 
     while True:
 
         try:
+
             matches = get_live_matches()
 
             print(
@@ -151,6 +348,7 @@ def main():
                 analyze_match(match)
 
         except Exception as e:
+
             print("MAIN ERROR:", e)
 
         time.sleep(CHECK_INTERVAL)
