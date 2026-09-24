@@ -369,62 +369,26 @@ def calculate_signal(
 # ANALYZE MATCH
 # ==============================
 
+```python
 def analyze_match(match):
 
-    fixture = match.get(
-        "fixture",
-        {}
+    fixture = match.get("fixture", {})
+    teams = match.get("teams", {})
+    goals = match.get("goals", {})
+
+    fixture_id = fixture.get("id")
+
+    home = teams.get("home", {}).get("name", "Home")
+    away = teams.get("away", {}).get("name", "Away")
+
+    home_goals = goals.get("home") or 0
+    away_goals = goals.get("away") or 0
+
+    minute = (
+        fixture.get("status", {}).get("elapsed") or 0
     )
 
-    teams = match.get(
-        "teams",
-        {}
-    )
-
-    goals = match.get(
-        "goals",
-        {}
-    )
-
-    fixture_id = fixture.get(
-        "id"
-    )
-
-    home = teams.get(
-        "home",
-        {}
-    ).get(
-        "name",
-        "Home"
-    )
-
-    away = teams.get(
-        "away",
-        {}
-    ).get(
-        "name",
-        "Away"
-    )
-
-    home_goals = goals.get(
-        "home"
-    ) or 0
-
-    away_goals = goals.get(
-        "away"
-    ) or 0
-
-    minute = fixture.get(
-        "status",
-        {}
-    ).get(
-        "elapsed"
-    ) or 0
-
-    total_goals = (
-        home_goals +
-        away_goals
-    )
+    total_goals = home_goals + away_goals
 
     print(
         "ANALYZING:",
@@ -434,53 +398,41 @@ def analyze_match(match):
         f"{home_goals}-{away_goals}",
         f"minute={minute}"
     )
-    # --------------------------
+
+    # ==============================
     # QUICK FILTER
-    # Tiết kiệm API quota
-    # --------------------------
+    # ==============================
 
     if minute < 45:
-
         print(
             "SKIP EARLY MATCH:",
             fixture_id
         )
-
         return
 
     if total_goals < 1:
-
         print(
             "SKIP 0-0:",
             fixture_id
         )
-
         return
 
-
-
-
-    # --------------------------
+    # ==============================
     # STATISTICS
-    # --------------------------
+    # ==============================
 
-    stats = get_statistics(
-        fixture_id
-    )
+    stats = get_statistics(fixture_id)
 
     if not stats:
-
         print(
             "NO STATISTICS:",
             fixture_id
         )
-
         return
 
-
-    # --------------------------
-    # SHOTS
-    # --------------------------
+    # ==============================
+    # TOTAL SHOTS
+    # ==============================
 
     home_shots = get_stat_value(
         stats,
@@ -494,15 +446,11 @@ def analyze_match(match):
         "Total Shots"
     )
 
-    total_shots = (
-        home_shots +
-        away_shots
-    )
+    total_shots = home_shots + away_shots
 
-
-    # --------------------------
+    # ==============================
     # SHOTS ON TARGET
-    # --------------------------
+    # ==============================
 
     home_sot = get_stat_value(
         stats,
@@ -516,15 +464,11 @@ def analyze_match(match):
         "Shots on Goal"
     )
 
-    shots_on_target = (
-        home_sot +
-        away_sot
-    )
+    shots_on_target = home_sot + away_sot
 
-
-    # --------------------------
+    # ==============================
     # CORNERS
-    # --------------------------
+    # ==============================
 
     home_corners = get_stat_value(
         stats,
@@ -538,24 +482,21 @@ def analyze_match(match):
         "Corner Kicks"
     )
 
-    corners = (
-        home_corners +
-        away_corners
-    )
+    corners = home_corners + away_corners
 
+    # ==============================
+    # RECENT GOAL
+    # ==============================
 
-   # --------------------------
-# RECENT GOAL
-# Tạm thời chưa gọi Events để tiết kiệm API
-# --------------------------
+    # Tạm thời chưa gọi Events
+    # để tiết kiệm API quota.
 
-recent_goal = False
-last_goal = None
+    recent_goal = False
+    last_goal = None
 
-
-    # --------------------------
+    # ==============================
     # CALCULATE SIGNAL
-    # --------------------------
+    # ==============================
 
     signal = calculate_signal(
         minute=minute,
@@ -565,7 +506,6 @@ last_goal = None
         corners=corners,
         recent_goal=recent_goal
     )
-
 
     print(
         "SIGNAL SCORE:",
@@ -580,60 +520,43 @@ last_goal = None
         last_goal
     )
 
-
-    # --------------------------
+    # ==============================
     # ALERT THRESHOLD
-    # --------------------------
+    # ==============================
 
     if signal < 75:
-
         return
 
-
-    # --------------------------
+    # ==============================
     # ANTI SPAM
-    # --------------------------
+    # ==============================
 
     if fixture_id in sent_alerts:
-
         return
 
-    sent_alerts.add(
-        fixture_id
-    )
+    sent_alerts.add(fixture_id)
 
-
-    # --------------------------
+    # ==============================
     # SIGNAL LEVEL
-    # --------------------------
+    # ==============================
 
     if signal >= 85:
-
         level = "🔥🔥 RẤT CAO"
-
     else:
-
         level = "🔥 CAO"
 
-
-    # --------------------------
+    # ==============================
     # LAST GOAL TEXT
-    # --------------------------
+    # ==============================
 
     if last_goal:
-
-        last_goal_text = (
-            f"{last_goal}'"
-        )
-
+        last_goal_text = f"{last_goal}'"
     else:
-
         last_goal_text = "Chưa có"
 
-
-    # --------------------------
+    # ==============================
     # TELEGRAM MESSAGE
-    # --------------------------
+    # ==============================
 
     message = (
         "🚨 BETING · GOAL SIGNAL\n\n"
@@ -651,9 +574,9 @@ last_goal = None
         "không đảm bảo kết quả."
     )
 
-    send_telegram(
-        message
-    )
+    send_telegram(message)
+```
+
 
 
 # ==============================
