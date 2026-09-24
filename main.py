@@ -434,7 +434,28 @@ def analyze_match(match):
         f"{home_goals}-{away_goals}",
         f"minute={minute}"
     )
+    # --------------------------
+    # QUICK FILTER
+    # Tiết kiệm API quota
+    # --------------------------
 
+    if minute < 45:
+
+        print(
+            "SKIP EARLY MATCH:",
+            fixture_id
+        )
+
+        return
+
+    if total_goals < 1:
+
+        print(
+            "SKIP 0-0:",
+            fixture_id
+        )
+
+        return
 
 
 
