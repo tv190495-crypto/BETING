@@ -90,12 +90,12 @@ def analyze_match(match):
     if not signal:
         return
 
-    alert_key = f"{fixture_id}_{minute}"
+alert_key = fixture_id
 
-    if alert_key in sent_alerts:
-        return
+if alert_key in sent_alerts:
+    return
 
-    sent_alerts.add(alert_key)
+sent_alerts.add(alert_key)
 
     message = (
         "🚨 BETING · LIVE SIGNAL\n\n"
