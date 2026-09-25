@@ -900,98 +900,100 @@ def analyze_match(match):
             fixture_id
         )
 
-# SIGNAL
+    # SIGNAL
 
-goals_last_5 = 0
-goals_last_10 = 0
-goals_last_15 = 0
-goals_last_20 = 0
+    goals_last_5 = 0
+    goals_last_10 = 0
+    goals_last_15 = 0
+    goals_last_20 = 0
 
-if events:
+    if events:
 
-    goals_last_5 = events.get(
-        "goals_last_5",
-        0
+        goals_last_5 = events.get(
+            "goals_last_5",
+            0
+        )
+
+        goals_last_10 = events.get(
+            "goals_last_10",
+            0
+        )
+
+        goals_last_15 = events.get(
+            "goals_last_15",
+            0
+        )
+
+        goals_last_20 = events.get(
+            "goals_last_20",
+            0
+        )
+
+    signal = calculate_signal(
+        minute=minute,
+        total_goals=total_goals,
+        total_shots=total_shots,
+        shots_on_target=shots_on_target,
+        corners=corners,
+        minutes_since_goal=minutes_since_goal,
+        goals_last_5=goals_last_5,
+        goals_last_10=goals_last_10,
+        goals_last_15=goals_last_15,
+        goals_last_20=goals_last_20
     )
 
-    goals_last_10 = events.get(
-        "goals_last_10",
-        0
+    print(
+        "GOAL TEMPO SIGNAL:",
+        "5m=",
+        goals_last_5,
+        "| 10m=",
+        goals_last_10,
+        "| 15m=",
+        goals_last_15,
+        "| 20m=",
+        goals_last_20
     )
 
-    goals_last_15 = events.get(
-        "goals_last_15",
-        0
-    )
+    # SAVE HISTORY SNAPSHOT
 
-    goals_last_20 = events.get(
-        "goals_last_20",
-        0
-    )
+    if (
+        total_shots is not None
+        and shots_on_target is not None
+        and corners is not None
+    ):
 
-signal = calculate_signal(
-    minute=minute,
-    total_goals=total_goals,
-    total_shots=total_shots,
-    shots_on_target=shots_on_target,
-    corners=corners,
-    minutes_since_goal=minutes_since_goal,
-    goals_last_5=goals_last_5,
-    goals_last_10=goals_last_10,
-    goals_last_15=goals_last_15,
-    goals_last_20=goals_last_20
-)
+        save_match_snapshot(
+            fixture_id,
+            home,
+            away,
+            minute,
+            home_goals,
+            away_goals,
+            total_shots,
+            shots_on_target,
+            corners
+        )
 
-print(
-    "GOAL TEMPO SIGNAL:",
-    "5m=",
-    goals_last_5,
-    "| 10m=",
-    goals_last_10,
-    "| 15m=",
-    goals_last_15,
-    "| 20m=",
-    goals_last_20
-)
+    else:
 
-# SAVE HISTORY SNAPSHOT
+        print(
+            "HISTORY SNAPSHOT SKIPPED:",
+            fixture_id,
+            "| LIVE STATISTICS INCOMPLETE"
+        )
 
-if (
-    total_shots is not None
-    and shots_on_target is not None
-    and corners is not None
-):
-
-    save_match_snapshot(
-        fixture_id,
-        home,
-        away,
-        minute,
-        home_goals,
-        away_goals,
+    print(
+        "SIGNAL SCORE:",
+        f"{signal}/100",
+        "| shots=",
         total_shots,
+        "| SOT=",
         shots_on_target,
+        "| corners=",
         corners
     )
 
-else:
 
-    print(
-        "HISTORY SNAPSHOT SKIPPED:",
-        fixture_id,
-        "| LIVE STATISTICS INCOMPLETE"
-    )
-
-print(
-    "SIGNAL SCORE:",
-    f"{signal}/100",
-    "| shots=",
-    total_shots,
-    "| SOT=",
-    shots_on_target,
-    "| corners=",
-    corners
-)
 def main():
 
     print("")
