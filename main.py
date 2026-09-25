@@ -67,7 +67,59 @@ CHECK_INTERVAL = 60
 
 sent_alerts = set()
 
+def save_match_snapshot(
+    fixture_id,
+    home_team,
+    away_team,
+    minute,
+    home_goals,
+    away_goals,
+    total_shots,
+    total_sot,
+    total_corners,
+    ou_line=None,
+    ou_over=None,
+    ou_under=None
+):
 
+    snapshot = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "fixture_id": fixture_id,
+        "home_team": home_team,
+        "away_team": away_team,
+        "minute": minute,
+        "home_goals": home_goals,
+        "away_goals": away_goals,
+        "total_goals": home_goals + away_goals,
+        "total_shots": total_shots,
+        "total_sot": total_sot,
+        "total_corners": total_corners,
+        "ou_line": ou_line,
+        "ou_over": ou_over,
+        "ou_under": ou_under
+    }
+
+    history_data.append(snapshot)
+
+    save_history(history_data)
+
+    print(
+        "HISTORY SNAPSHOT SAVED:",
+        fixture_id,
+        "|",
+        minute,
+        "'",
+        "|",
+        home_goals,
+        "-",
+        away_goals,
+        "| SHOTS:",
+        total_shots,
+        "| SOT:",
+        total_sot,
+        "| CORNERS:",
+        total_corners
+    )
 def api_get(endpoint, params=None):
 
     try:
