@@ -469,6 +469,22 @@ def analyze_match(match):
         f"minute={minute}"
     )
 
+    match_status = status.get(
+        "short",
+        ""
+    )
+
+    if match_status == "ET":
+
+        print(
+            "SKIP EXTRA TIME:",
+            fixture_id,
+            "| minute=",
+            minute
+        )
+
+        return
+
     if minute < 45:
 
         print(
