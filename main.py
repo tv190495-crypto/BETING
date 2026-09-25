@@ -393,6 +393,8 @@ def get_live_ou_market(odds):
             []
         )
 
+        result = []
+
         for market in markets:
 
             market_name = str(
@@ -407,8 +409,6 @@ def get_live_ou_market(odds):
                 []
             )
 
-            result = []
-
             for item in values:
 
                 value = item.get(
@@ -417,6 +417,13 @@ def get_live_ou_market(odds):
 
                 odd = item.get(
                     "odd"
+                )
+
+                handicap = (
+                    item.get("handicap")
+                    or item.get("line")
+                    or item.get("point")
+                    or item.get("total")
                 )
 
                 if value is None or odd is None:
@@ -429,17 +436,18 @@ def get_live_ou_market(odds):
 
                 result.append({
                     "value": value,
+                    "handicap": handicap,
                     "odd": odd
                 })
 
-            if result:
+        if result:
 
-                print(
-                    "LIVE O/U MARKET:",
-                    result
-                )
+            print(
+                "LIVE O/U MARKET:",
+                result
+            )
 
-                return result
+            return result
 
     except Exception as e:
 
@@ -453,7 +461,6 @@ def get_live_ou_market(odds):
     )
 
     return None
-    
 
 def get_stat_value(stats, team_name, stat_type):
 
