@@ -1275,33 +1275,7 @@ def analyze_match(match):
         goals_last_20
     )
 
-    # SAVE HISTORY SNAPSHOT
 
-    if (
-        total_shots is not None
-        and shots_on_target is not None
-        and corners is not None
-    ):
-
-        save_match_snapshot(
-            fixture_id,
-            home,
-            away,
-            minute,
-            home_goals,
-            away_goals,
-            total_shots,
-            shots_on_target,
-            corners
-        )
-
-    else:
-
-        print(
-            "HISTORY SNAPSHOT SKIPPED:",
-            fixture_id,
-            "| LIVE STATISTICS INCOMPLETE"
-        )
     # HISTORICAL SIMILARITY
 
     ou_line = None
@@ -1336,7 +1310,33 @@ def analyze_match(match):
         "| corners=",
         corners
     )
+    # SAVE HISTORY SNAPSHOT
 
+    if (
+        total_shots is not None
+        and shots_on_target is not None
+        and corners is not None
+    ):
+
+        save_match_snapshot(
+            fixture_id,
+            home,
+            away,
+            minute,
+            home_goals,
+            away_goals,
+            total_shots,
+            shots_on_target,
+            corners
+        )
+
+    else:
+
+        print(
+            "HISTORY SNAPSHOT SKIPPED:",
+            fixture_id,
+            "| LIVE STATISTICS INCOMPLETE"
+        )
 
 def main():
 
