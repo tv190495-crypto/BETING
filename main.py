@@ -1281,7 +1281,30 @@ def analyze_match(match):
             fixture_id,
             "| LIVE STATISTICS INCOMPLETE"
         )
+    # HISTORICAL SIMILARITY
 
+    ou_line = None
+
+    if main_ou:
+        ou_line = main_ou.get(
+            "handicap"
+        )
+
+    historical = get_historical_similarity(
+        minute=minute,
+        total_goals=total_goals,
+        total_shots=total_shots,
+        shots_on_target=shots_on_target,
+        corners=corners,
+        ou_line=ou_line
+    )
+
+    print(
+        "HISTORICAL RATE:",
+        historical.get("goal_rate"),
+        "% | SAMPLE:",
+        historical.get("sample_size")
+    )
     print(
         "SIGNAL SCORE:",
         f"{signal}/100",
