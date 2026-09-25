@@ -900,16 +900,59 @@ def analyze_match(match):
             fixture_id
         )
 
-    # SIGNAL
+# SIGNAL
 
-    signal = calculate_signal(
-        minute=minute,
-        total_goals=total_goals,
-        total_shots=total_shots,
-        shots_on_target=shots_on_target,
-        corners=corners,
-        minutes_since_goal=minutes_since_goal
+goals_last_5 = 0
+goals_last_10 = 0
+goals_last_15 = 0
+goals_last_20 = 0
+
+if events:
+
+    goals_last_5 = events.get(
+        "goals_last_5",
+        0
     )
+
+    goals_last_10 = events.get(
+        "goals_last_10",
+        0
+    )
+
+    goals_last_15 = events.get(
+        "goals_last_15",
+        0
+    )
+
+    goals_last_20 = events.get(
+        "goals_last_20",
+        0
+    )
+
+signal = calculate_signal(
+    minute=minute,
+    total_goals=total_goals,
+    total_shots=total_shots,
+    shots_on_target=shots_on_target,
+    corners=corners,
+    minutes_since_goal=minutes_since_goal,
+    goals_last_5=goals_last_5,
+    goals_last_10=goals_last_10,
+    goals_last_15=goals_last_15,
+    goals_last_20=goals_last_20
+)
+
+print(
+    "GOAL TEMPO SIGNAL:",
+    "5m=",
+    goals_last_5,
+    "| 10m=",
+    goals_last_10,
+    "| 15m=",
+    goals_last_15,
+    "| 20m=",
+    goals_last_20
+)
 
     # SAVE HISTORY SNAPSHOT
 
