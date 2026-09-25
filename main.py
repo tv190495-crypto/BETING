@@ -601,10 +601,13 @@ def analyze_match(match):
     else:
 
         print(
-            "NO LIVE STATISTICS - USING EVENTS:",
+            "LIVE STATISTICS UNAVAILABLE:",
             fixture_id
         )
 
+        total_shots = None
+        shots_on_target = None
+        corners = None
     # ==============================
     # LIVE O/U
     # ==============================
