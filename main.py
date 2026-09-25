@@ -795,13 +795,14 @@ def analyze_match(match):
     # SIGNAL
     # ==============================
 
-    signal = calculate_signal(
-        minute=minute,
-        total_goals=total_goals,
-        total_shots=total_shots,
-        shots_on_target=shots_on_target,
-        corners=corners
-    )
+signal = calculate_signal(
+    minute=minute,
+    total_goals=total_goals,
+    total_shots=total_shots,
+    shots_on_target=shots_on_target,
+    corners=corners,
+    minutes_since_goal=minutes_since_goal
+)
 
     # ==============================
     # SAVE HISTORY SNAPSHOT
