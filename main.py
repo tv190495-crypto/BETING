@@ -582,7 +582,17 @@ def analyze_match(match):
         shots_on_target=shots_on_target,
         corners=corners
     )
-
+    save_match_snapshot(
+        fixture_id,
+        home_team,
+        away_team,
+        minute,
+        home_goals,
+        away_goals,
+        total_shots,
+        total_sot,
+        total_corners
+    )
     print(
         "SIGNAL SCORE:",
         f"{signal}/100",
