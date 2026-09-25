@@ -84,7 +84,10 @@ def get_statistics(fixture_id):
         "fixtures/statistics",
         {"fixture": fixture_id}
     )
-
+print(
+    "STATISTICS RAW:",
+    stats
+)
     if not stats:
         print(
             "SKIP - NO LIVE STATISTICS:",
