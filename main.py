@@ -985,7 +985,23 @@ def analyze_match(match):
             "LIVE O/U READY:",
             ou_market
         )
+    main_ou = select_main_ou(
+        ou_market,
+        total_goals
+    )
 
+    if main_ou:
+
+        print(
+            "MAIN LIVE O/U:",
+            main_ou
+        )
+
+    else:
+
+        print(
+            "MAIN O/U UNAVAILABLE"
+        )
     else:
 
         print(
