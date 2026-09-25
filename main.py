@@ -605,13 +605,14 @@ def analyze_match(match):
     # SIGNAL
     # ==============================
 
-signal = calculate_signal(
-    minute=minute,
-    total_goals=total_goals,
-    total_shots=total_shots,
-    shots_on_target=shots_on_target,
-    corners=corners
-)
+    signal = calculate_signal(
+        minute=minute,
+        total_goals=total_goals,
+        total_shots=total_shots,
+        shots_on_target=shots_on_target,
+        corners=corners
+    )
+
     # ==============================
     # SAVE HISTORY SNAPSHOT
     # ==============================
@@ -627,7 +628,6 @@ signal = calculate_signal(
         shots_on_target,
         corners
     )
-
     print(
         "SIGNAL SCORE:",
         f"{signal}/100",
