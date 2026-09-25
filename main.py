@@ -481,6 +481,7 @@ def analyze_match(match):
         "fixture",
         {}
     )
+
     league = match.get(
         "league",
         {}
@@ -490,6 +491,7 @@ def analyze_match(match):
         "LEAGUE COVERAGE:",
         league
     )
+
     teams = match.get(
         "teams",
         {}
