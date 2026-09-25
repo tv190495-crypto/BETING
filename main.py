@@ -83,7 +83,7 @@ def save_match_snapshot(
 ):
 
     snapshot = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now().astimezone().isoformat(),
         "fixture_id": fixture_id,
         "home_team": home_team,
         "away_team": away_team,
