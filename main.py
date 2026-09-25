@@ -271,7 +271,7 @@ def analyze_match(match):
         fixture_id
     )
 
-    if not stats:
+if not stats:
     print("SKIP - NO LIVE STATISTICS:", fixture_id)
     return
 
