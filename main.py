@@ -286,7 +286,7 @@ def analyze_match(match):
             fixture_id
         )
         return
-
+    odds = get_live_odds(fixture_id)
     home_shots = get_stat_value(
         stats,
         home,
