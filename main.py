@@ -590,7 +590,42 @@ def analyze_match(match):
     events = get_events(
         fixture_id
     )
+    # GOAL TEMPO
+    latest_goal_minute = None
+    minutes_since_goal = None
 
+    if events:
+
+        latest_goal_minute = events.get(
+            "latest_goal_minute"
+        )
+
+        if latest_goal_minute is not None:
+
+            minutes_since_goal = (
+                minute -
+                latest_goal_minute
+            )
+
+            print(
+                "GOAL TEMPO:",
+                "latest_goal=",
+                latest_goal_minute,
+                "' | minutes_since_goal=",
+                minutes_since_goal
+            )
+
+        else:
+
+            print(
+                "GOAL TEMPO: NO GOALS"
+            )
+
+    else:
+
+        print(
+            "GOAL TEMPO: EVENTS UNAVAILABLE"
+        )
     # ==============================
     # LIVE ODDS
     # ==============================
