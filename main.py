@@ -113,7 +113,18 @@ def get_statistics(fixture_id):
             fixture_id
         )
         return stats
+def get_events(fixture_id):
+    events = api_get(
+        "fixtures/events",
+        {"fixture": fixture_id}
+    )
 
+    print(
+        "EVENTS RAW:",
+        events
+    )
+
+    return events
 
 def get_live_odds(fixture_id):
     odds = api_get(
