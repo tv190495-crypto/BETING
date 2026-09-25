@@ -461,7 +461,76 @@ def get_live_ou_market(odds):
     )
 
     return None
+def select_main_ou(ou_market, total_goals):
+    if not ou_market:
+        return None
 
+    pairs = {}
+
+    for item in ou_market:
+        try:
+            handicap = float(item.get("handicap"))
+            odd = float(item.get("odd"))
+        except:
+            continue
+
+        value = str(
+            item.get("value", "")
+        ).lower()
+
+        if handicap not in pairs:
+            pairs[handicap] = {}
+
+        if "over" in value:
+            pairs[handicap]["over"] = odd
+
+        elif "under" in value:
+            pairs[handicap]["under"] = odd
+
+    valid_lines = []
+
+    for handicap, data in pairs.items():
+
+        if (
+            "over" not in data
+            or "under" not in data
+        ):
+            continue
+
+        if handicap < total_goals:
+            continue
+
+        valid_lines.append(
+            (
+                handicap,
+                data["over"],
+                data["under"]
+            )
+        )
+
+    if not valid_lines:
+        return None
+
+    valid_lines.sort(
+        key=lambda x: x[0]
+    )
+
+    handicap, over_odd, under_odd = (
+        valid_lines[0]
+    )
+
+    result = {
+        "handicap": handicap,
+        "over_odd": over_odd,
+        "under_odd": under_odd
+    }
+
+    print(
+        "MAIN LIVE O/U:",
+        result
+    )
+
+    return result
 def get_stat_value(stats, team_name, stat_type):
 
     for team_data in stats:
