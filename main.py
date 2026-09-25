@@ -441,22 +441,22 @@ def analyze_match(match):
     home_goals = goals.get("home") or 0
     away_goals = goals.get("away") or 0
 
-status = fixture.get(
-    "status",
-    {}
-)
+    status = fixture.get(
+        "status",
+        {}
+    )
 
-minute = status.get(
-    "elapsed"
-)
+    minute = status.get(
+        "elapsed"
+    )
 
-if minute is None:
-    minute = 0
+    if minute is None:
+        minute = 0
 
-print(
-    "MATCH STATUS:",
-    status
-)
+    print(
+        "MATCH STATUS:",
+        status
+    )
 
     total_goals = home_goals + away_goals
 
