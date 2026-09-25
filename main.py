@@ -1162,13 +1162,13 @@ def analyze_match(match):
             fixture_id
         )
 
-# LIVE O/U
+    # LIVE O/U
 
-main_ou = None
+    main_ou = None
 
-ou_market = get_live_ou_market(
-    odds
-)
+    ou_market = get_live_ou_market(
+        odds
+    )
 
     if ou_market:
 
