@@ -1318,20 +1318,20 @@ def analyze_match(match):
         and corners is not None
     ):
 
-save_match_snapshot(
-    fixture_id,
-    home,
-    away,
-    minute,
-    home_goals,
-    away_goals,
-    total_shots,
-    shots_on_target,
-    corners,
-    ou_line=ou_line,
-    ou_over=main_ou.get("over_odd") if main_ou else None,
-    ou_under=main_ou.get("under_odd") if main_ou else None
-)
+        save_match_snapshot(
+            fixture_id,
+            home,
+            away,
+            minute,
+            home_goals,
+            away_goals,
+            total_shots,
+            shots_on_target,
+            corners,
+            ou_line=ou_line,
+            ou_over=main_ou.get("over_odd") if main_ou else None,
+            ou_under=main_ou.get("under_odd") if main_ou else None
+        )
 
     else:
 
@@ -1340,7 +1340,6 @@ save_match_snapshot(
             fixture_id,
             "| LIVE STATISTICS INCOMPLETE"
         )
-
 def main():
 
     print("")
