@@ -80,14 +80,12 @@ def get_live_matches():
 
 
 def get_statistics(fixture_id):
-
-    return api_get(
-        "fixtures/statistics",
-        {
-            "fixture": fixture_id
-        }
-    )
-
+    stats = api_get("fixtures/statistics", {"fixture": fixture_id})
+    if not stats:
+        print("STATISTICS UNAVAILABLE:", fixture_id)
+        return None
+    return stats
+    
 
 def get_stat_value(stats, team_name, stat_type):
 
