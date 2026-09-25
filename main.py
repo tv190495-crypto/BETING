@@ -80,20 +80,45 @@ def get_live_matches():
 
 
 def get_statistics(fixture_id):
-    def get_live_odds(fixture_id):
-        odds = api_get("odds/live", {"fixture": fixture_id})
+    stats = api_get(
+        "fixtures/statistics",
+        {"fixture": fixture_id}
+    )
+
+    if not stats:
+        print(
+            "STATISTICS UNAVAILABLE:",
+            fixture_id
+        )
+        return None
+
+    print(
+        "LIVE STATISTICS AVAILABLE:",
+        fixture_id
+    )
+
+    return stats
+
+
+def get_live_odds(fixture_id):
+    odds = api_get(
+        "odds/live",
+        {"fixture": fixture_id}
+    )
 
     if not odds:
-        print("LIVE ODDS UNAVAILABLE:", fixture_id)
+        print(
+            "LIVE ODDS UNAVAILABLE:",
+            fixture_id
+        )
         return None
 
-    print("LIVE ODDS AVAILABLE:", fixture_id)
+    print(
+        "LIVE ODDS AVAILABLE:",
+        fixture_id
+    )
+
     return odds
-    stats = api_get("fixtures/statistics", {"fixture": fixture_id})
-    if not stats:
-        print("STATISTICS UNAVAILABLE:", fixture_id)
-        return None
-    return stats
     
 
 def get_stat_value(stats, team_name, stat_type):
