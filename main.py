@@ -87,17 +87,21 @@ def get_statistics(fixture_id):
 
     if not stats:
         print(
-            "STATISTICS UNAVAILABLE:",
+            "SKIP - NO LIVE STATISTICS:",
             fixture_id
         )
-        return None
+        return
 
-    print(
-        "LIVE STATISTICS AVAILABLE:",
+    odds = get_live_odds(
         fixture_id
     )
 
-    return stats
+    if not odds:
+        print(
+            "SKIP - NO LIVE ODDS:",
+            fixture_id
+        )
+        return stats
 
 
 def get_live_odds(fixture_id):
