@@ -13,7 +13,7 @@ HEADERS = {
     "x-apisports-key": API_KEY
 }
 
-CHECK_INTERVAL = 86400
+CHECK_INTERVAL = 60
 
 sent_alerts = set()
 
