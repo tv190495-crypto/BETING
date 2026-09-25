@@ -749,6 +749,7 @@ def get_historical_similarity(
 ):
 
     if not history_data:
+
         return {
             "sample_size": 0,
             "goal_rate": None
@@ -759,12 +760,20 @@ def get_historical_similarity(
     for record in history_data:
 
         try:
+
+            r_fixture_id = record.get(
+                "fixture_id"
+            )
+
             r_minute = float(
                 record.get("minute")
             )
 
             r_goals = int(
-                record.get("total_goals", 0)
+                record.get(
+                    "total_goals",
+                    0
+                )
             )
 
             r_shots = record.get(
@@ -784,50 +793,88 @@ def get_historical_similarity(
             )
 
         except:
+
             continue
 
-        if abs(r_minute - minute) > 8:
+        # Không dùng snapshot hiện tại
+        if (
+            r_fixture_id is None
+        ):
+
             continue
 
-        if abs(r_goals - total_goals) > 1:
+        # 1. Phút tương tự
+        if abs(
+            r_minute - float(minute)
+        ) > 8:
+
             continue
 
+        # 2. Tổng số bàn tương tự
+        if abs(
+            r_goals - int(total_goals)
+        ) > 1:
+
+            continue
+
+        # 3. Tổng cú sút
         if (
             total_shots is not None
             and r_shots is not None
         ):
 
-            if abs(
-                float(r_shots)
-                - float(total_shots)
-            ) > 8:
+            try:
+
+                if abs(
+                    float(r_shots)
+                    - float(total_shots)
+                ) > 8:
+
+                    continue
+
+            except:
 
                 continue
 
+        # 4. Sút trúng đích
         if (
             shots_on_target is not None
             and r_sot is not None
         ):
 
-            if abs(
-                float(r_sot)
-                - float(shots_on_target)
-            ) > 4:
+            try:
+
+                if abs(
+                    float(r_sot)
+                    - float(shots_on_target)
+                ) > 4:
+
+                    continue
+
+            except:
 
                 continue
 
+        # 5. Phạt góc
         if (
             corners is not None
             and r_corners is not None
         ):
 
-            if abs(
-                float(r_corners)
-                - float(corners)
-            ) > 4:
+            try:
+
+                if abs(
+                    float(r_corners)
+                    - float(corners)
+                ) > 4:
+
+                    continue
+
+            except:
 
                 continue
 
+        # 6. O/U live
         if (
             ou_line is not None
             and r_ou is not None
@@ -843,39 +890,89 @@ def get_historical_similarity(
                     continue
 
             except:
-                pass
+
+                continue
 
         similar.append(
             record
         )
 
     if not similar:
+
         return {
             "sample_size": 0,
             "goal_rate": None
         }
 
+    # ==================================================
+    # MỖI TRẬN CHỈ TÍNH 1 LẦN
+    # ==================================================
+
+    unique_fixtures = {}
+
+    for record in similar:
+
+        fixture_id = record.get(
+            "fixture_id"
+        )
+
+        if fixture_id is None:
+            continue
+
+        if fixture_id not in unique_fixtures:
+
+            unique_fixtures[
+                fixture_id
+            ] = record
+
+    similar_unique = list(
+        unique_fixtures.values()
+    )
+
+    if not similar_unique:
+
+        return {
+            "sample_size": 0,
+            "goal_rate": None
+        }
+
+    # ==================================================
+    # KIỂM TRA CÓ BÀN TIẾP THEO
+    # ==================================================
+
     goals_followed = 0
 
-    for current in similar:
+    for current in similar_unique:
 
         fixture_id = current.get(
             "fixture_id"
         )
 
-        minute_now = current.get(
-            "minute"
-        )
+        try:
 
-        goals_now = current.get(
-            "total_goals"
-        )
+            minute_now = float(
+                current.get("minute")
+            )
+
+            goals_now = int(
+                current.get(
+                    "total_goals",
+                    0
+                )
+            )
+
+        except:
+
+            continue
+
+        had_later_goal = False
 
         for later in history_data:
 
-            if later.get(
-                "fixture_id"
-            ) != fixture_id:
+            if (
+                later.get("fixture_id")
+                != fixture_id
+            ):
 
                 continue
 
@@ -897,15 +994,19 @@ def get_historical_similarity(
                 continue
 
             if (
-                later_minute > float(minute_now)
-                and later_goals > int(goals_now)
+                later_minute > minute_now
+                and later_goals > goals_now
             ):
 
-                goals_followed += 1
+                had_later_goal = True
                 break
 
+        if had_later_goal:
+
+            goals_followed += 1
+
     sample_size = len(
-        similar
+        similar_unique
     )
 
     goal_rate = (
