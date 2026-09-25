@@ -222,13 +222,7 @@ def get_events(fixture_id):
         {"fixture": fixture_id}
     )
 
-    print(
-        "EVENTS RAW:",
-        events
-    )
-
     if not events:
-
         return {
             "latest_goal_minute": None,
             "minutes_since_goal": None,
@@ -285,46 +279,87 @@ def get_events(fixture_id):
 
     latest_goal_minute = goal_minutes[-1]
 
+    # Lấy phút hiện tại từ fixture
+    current_fixture = api_get(
+        "fixtures",
+        {"id": fixture_id}
+    )
+
+    current_minute = 0
+
+    if current_fixture:
+
+        try:
+            current_minute = (
+                current_fixture[0]
+                .get("fixture", {})
+                .get("status", {})
+                .get("elapsed")
+                or 0
+            )
+
+            current_minute = int(
+                current_minute
+            )
+
+        except:
+            current_minute = 0
+
+    minutes_since_goal = (
+        current_minute - latest_goal_minute
+    )
+
+    goals_last_5 = sum(
+        1
+        for m in goal_minutes
+        if current_minute - 5 <= m <= current_minute
+    )
+
+    goals_last_10 = sum(
+        1
+        for m in goal_minutes
+        if current_minute - 10 <= m <= current_minute
+    )
+
+    goals_last_15 = sum(
+        1
+        for m in goal_minutes
+        if current_minute - 15 <= m <= current_minute
+    )
+
+    goals_last_20 = sum(
+        1
+        for m in goal_minutes
+        if current_minute - 20 <= m <= current_minute
+    )
+
     print(
         "GOAL MINUTES:",
         goal_minutes
     )
 
-    return {
-        "latest_goal_minute": latest_goal_minute,
-        "minutes_since_goal": None,
-        "goals_last_5": 0,
-        "goals_last_10": 0,
-        "goals_last_15": 0,
-        "goals_last_20": 0
-    }
-    if not goal_minutes:
-
-        return {
-            "latest_goal_minute": None,
-            "minutes_since_goal": None,
-            "goals_last_5": 0,
-            "goals_last_10": 0,
-            "goals_last_15": 0,
-            "goals_last_20": 0
-        }
-
-    latest_goal_minute = goal_minutes[-1]
-
     print(
-        "GOAL MINUTES:",
-        goal_minutes
+        "GOAL TEMPO:",
+        "last5=",
+        goals_last_5,
+        "| last10=",
+        goals_last_10,
+        "| last15=",
+        goals_last_15,
+        "| last20=",
+        goals_last_20,
+        "| since_last=",
+        minutes_since_goal
     )
 
     return {
         "latest_goal_minute": latest_goal_minute,
-        "minutes_since_goal": None,
-        "goals_last_5": 0,
-        "goals_last_10": 0,
-        "goals_last_15": 0,
-        "goals_last_20": 0
+        "minutes_since_goal": minutes_since_goal,
+        "goals_last_5": goals_last_5,
+        "goals_last_10": goals_last_10,
+        "goals_last_15": goals_last_15,
+        "goals_last_20": goals_last_20
     }
-
 def get_live_odds(fixture_id):
     odds = api_get(
         "odds/live",
