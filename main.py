@@ -228,6 +228,7 @@ def get_events(fixture_id):
     )
 
     if not events:
+
         return {
             "latest_goal_minute": None,
             "minutes_since_goal": None,
@@ -267,6 +268,36 @@ def get_events(fixture_id):
 
     goal_minutes.sort()
 
+    if not goal_minutes:
+
+        print(
+            "GOAL MINUTES: NONE"
+        )
+
+        return {
+            "latest_goal_minute": None,
+            "minutes_since_goal": None,
+            "goals_last_5": 0,
+            "goals_last_10": 0,
+            "goals_last_15": 0,
+            "goals_last_20": 0
+        }
+
+    latest_goal_minute = goal_minutes[-1]
+
+    print(
+        "GOAL MINUTES:",
+        goal_minutes
+    )
+
+    return {
+        "latest_goal_minute": latest_goal_minute,
+        "minutes_since_goal": None,
+        "goals_last_5": 0,
+        "goals_last_10": 0,
+        "goals_last_15": 0,
+        "goals_last_20": 0
+    }
     if not goal_minutes:
 
         return {
