@@ -315,7 +315,27 @@ def analyze_match(match):
     stats = get_statistics(
         fixture_id
     )
+    stats = get_statistics(
+        fixture_id
+    )
 
+    if not stats:
+        print(
+            "SKIP - NO LIVE STATISTICS:",
+            fixture_id
+        )
+        return
+
+    odds = get_live_odds(
+        fixture_id
+    )
+
+    if not odds:
+        print(
+            "SKIP - NO LIVE ODDS:",
+            fixture_id
+        )
+        return
 
 
     odds = get_live_odds(
