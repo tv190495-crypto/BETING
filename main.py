@@ -468,15 +468,6 @@ def analyze_match(match):
 
         return
 
-    if total_goals < 1:
-
-        print(
-            "SKIP 0-0:",
-            fixture_id
-        )
-
-        return
-
     if fixture_id in sent_alerts:
 
         print(
@@ -486,113 +477,158 @@ def analyze_match(match):
 
         return
 
+    # ==============================
+    # LIVE STATISTICS
+    # ==============================
+
     stats = get_statistics(
         fixture_id
     )
-    stats = get_statistics(
-        fixture_id
-    )
+
+    # ==============================
+    # LIVE EVENTS
+    # ==============================
 
     events = get_events(
         fixture_id
     )
 
-    if not stats:
-        print(
-            "SKIP - NO LIVE STATISTICS:",
-            fixture_id
-        )
-        return
+    # ==============================
+    # LIVE ODDS
+    # ==============================
 
     odds = get_live_odds(
         fixture_id
     )
 
-    if not odds:
+    # ==============================
+    # DEFAULT STATISTICS
+    # ==============================
+
+    total_shots = 0
+    shots_on_target = 0
+    corners = 0
+
+    if stats:
+
+        home_shots = get_stat_value(
+            stats,
+            home,
+            "Total Shots"
+        )
+
+        away_shots = get_stat_value(
+            stats,
+            away,
+            "Total Shots"
+        )
+
+        total_shots = (
+            home_shots +
+            away_shots
+        )
+
+        home_sot = get_stat_value(
+            stats,
+            home,
+            "Shots on Goal"
+        )
+
+        away_sot = get_stat_value(
+            stats,
+            away,
+            "Shots on Goal"
+        )
+
+        shots_on_target = (
+            home_sot +
+            away_sot
+        )
+
+        home_corners = get_stat_value(
+            stats,
+            home,
+            "Corner Kicks"
+        )
+
+        away_corners = get_stat_value(
+            stats,
+            away,
+            "Corner Kicks"
+        )
+
+        corners = (
+            home_corners +
+            away_corners
+        )
+
         print(
-            "SKIP - NO LIVE ODDS:",
+            "LIVE STATS PARSED:",
+            "shots=",
+            total_shots,
+            "| SOT=",
+            shots_on_target,
+            "| corners=",
+            corners
+        )
+
+    else:
+
+        print(
+            "NO LIVE STATISTICS - USING EVENTS:",
             fixture_id
         )
-        return
 
+    # ==============================
+    # LIVE O/U
+    # ==============================
 
-    odds = get_live_odds(
-        fixture_id
+    ou_market = get_live_ou_market(
+        odds
     )
 
-    if not odds:
+    if ou_market:
+
         print(
-            "SKIP - NO LIVE ODDS:",
+            "LIVE O/U READY:",
+            ou_market
+        )
+
+    else:
+
+        print(
+            "NO LIVE O/U:",
             fixture_id
         )
-        return
 
-    home_shots = get_stat_value(
-        stats,
-        home,
-        "Total Shots"
-    )
-
-    away_shots = get_stat_value(
-        stats,
-        away,
-        "Total Shots"
-    )
-
-    away_shots = get_stat_value(
-        stats,
-        away,
-        "Total Shots"
-    )
-
-    total_shots = home_shots + away_shots
-
-    home_sot = get_stat_value(
-        stats,
-        home,
-        "Shots on Goal"
-    )
-
-    away_sot = get_stat_value(
-        stats,
-        away,
-        "Shots on Goal"
-    )
-
-    shots_on_target = home_sot + away_sot
-
-    home_corners = get_stat_value(
-        stats,
-        home,
-        "Corner Kicks"
-    )
-
-    away_corners = get_stat_value(
-        stats,
-        away,
-        "Corner Kicks"
-    )
-
-    corners = home_corners + away_corners
+    # ==============================
+    # SIGNAL
+    # ==============================
 
     signal = calculate_signal(
         minute=minute,
         total_goals=total_goals,
         total_shots=total_shots,
-        shots_on_target=shots_on_target,
-        corners=corners
+        total_sot=shots_on_target,
+        total_corners=corners
     )
+
+    # ==============================
+    # SAVE HISTORY SNAPSHOT
+    # ==============================
+
     save_match_snapshot(
         fixture_id,
-        home_team,
-        away_team,
+        home,
+        away,
         minute,
         home_goals,
         away_goals,
         total_shots,
-        total_sot,
-        total_corners
+        shots_on_target,
+        corners
     )
+
     print(
         "SIGNAL SCORE:",
         f"{signal}/100",
@@ -603,51 +639,6 @@ def analyze_match(match):
         "| corners=",
         corners
     )
-
-    if signal < 70:
-
-        print(
-            "SIGNAL TOO LOW:",
-            signal
-        )
-
-        return
-
-    sent_alerts.add(
-        fixture_id
-    )
-
-    if signal >= 85:
-
-        level = "RAT CAO"
-
-    elif signal >= 75:
-
-        level = "CAO"
-
-    else:
-
-        level = "DANG CHU Y"
-
-    message = (
-        "BETING - KEO RUNG\n\n"
-        f"{home} vs {away}\n"
-        f"Phut: {minute}'\n"
-        f"Ty so: {home_goals}-{away_goals}\n\n"
-        f"Signal: {signal}/100\n"
-        f"Tong sut: {int(total_shots)}\n"
-        f"SOT: {int(shots_on_target)}\n"
-        f"Goc: {int(corners)}\n\n"
-        f"Muc do: {level}\n"
-        "Ket luan: CO TIN HIEU KEO RUNG\n\n"
-        "Day la tin hieu thong ke, "
-        "khong dam bao ket qua."
-    )
-
-    send_telegram(
-        message
-    )
-
 
 def main():
 
