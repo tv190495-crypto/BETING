@@ -461,16 +461,27 @@ def get_live_ou_market(odds):
     )
 
     return None
-def select_main_ou(ou_market, total_goals):
+def select_main_ou(
+    ou_market,
+    total_goals
+):
+
     if not ou_market:
         return None
 
     pairs = {}
 
     for item in ou_market:
+
         try:
-            handicap = float(item.get("handicap"))
-            odd = float(item.get("odd"))
+            handicap = float(
+                item.get("handicap")
+            )
+
+            odd = float(
+                item.get("odd")
+            )
+
         except:
             continue
 
@@ -489,6 +500,10 @@ def select_main_ou(ou_market, total_goals):
 
     valid_lines = []
 
+    target_line = (
+        float(total_goals) + 0.5
+    )
+
     for handicap, data in pairs.items():
 
         if (
@@ -497,11 +512,12 @@ def select_main_ou(ou_market, total_goals):
         ):
             continue
 
-        if handicap < total_goals:
-            continue
-
         valid_lines.append(
             (
+                abs(
+                    handicap
+                    - target_line
+                ),
                 handicap,
                 data["over"],
                 data["under"]
@@ -515,9 +531,12 @@ def select_main_ou(ou_market, total_goals):
         key=lambda x: x[0]
     )
 
-    handicap, over_odd, under_odd = (
-        valid_lines[0]
-    )
+    (
+        distance,
+        handicap,
+        over_odd,
+        under_odd
+    ) = valid_lines[0]
 
     result = {
         "handicap": handicap,
