@@ -1109,7 +1109,10 @@ def analyze_match(match):
         status
     )
 
-    total_goals = home_goals + away_goals
+    total_goals = (
+        home_goals
+        + away_goals
+    )
 
     print(
         "ANALYZING:",
@@ -1154,19 +1157,25 @@ def analyze_match(match):
 
         return
 
+    # ==================================================
     # LIVE STATISTICS
+    # ==================================================
 
     stats = get_statistics(
         fixture_id
     )
 
+    # ==================================================
     # LIVE EVENTS
+    # ==================================================
 
     events = get_events(
         fixture_id
     )
 
+    # ==================================================
     # GOAL TEMPO
+    # ==================================================
 
     latest_goal_minute = None
     minutes_since_goal = None
@@ -1180,7 +1189,8 @@ def analyze_match(match):
         if latest_goal_minute is not None:
 
             minutes_since_goal = (
-                minute - latest_goal_minute
+                minute
+                - latest_goal_minute
             )
 
             print(
@@ -1203,13 +1213,17 @@ def analyze_match(match):
             "GOAL TEMPO: EVENTS UNAVAILABLE"
         )
 
+    # ==================================================
     # LIVE ODDS
+    # ==================================================
 
     odds = get_live_odds(
         fixture_id
     )
 
-    # DEFAULT STATISTICS
+    # ==================================================
+    # LIVE STATISTICS PARSE
+    # ==================================================
 
     total_shots = None
     shots_on_target = None
@@ -1235,7 +1249,8 @@ def analyze_match(match):
         ):
 
             total_shots = (
-                home_shots + away_shots
+                home_shots
+                + away_shots
             )
 
         home_sot = get_stat_value(
@@ -1256,7 +1271,8 @@ def analyze_match(match):
         ):
 
             shots_on_target = (
-                home_sot + away_sot
+                home_sot
+                + away_sot
             )
 
         home_corners = get_stat_value(
@@ -1277,7 +1293,8 @@ def analyze_match(match):
         ):
 
             corners = (
-                home_corners + away_corners
+                home_corners
+                + away_corners
             )
 
         print(
@@ -1297,7 +1314,9 @@ def analyze_match(match):
             fixture_id
         )
 
-    # LIVE O/U
+    # ==================================================
+    # LIVE O/U KÈO RUNG
+    # ==================================================
 
     main_ou = None
 
@@ -1337,7 +1356,9 @@ def analyze_match(match):
             fixture_id
         )
 
+    # ==================================================
     # SIGNAL
+    # ==================================================
 
     goals_last_5 = 0
     goals_last_10 = 0
@@ -1391,12 +1412,14 @@ def analyze_match(match):
         goals_last_20
     )
 
-
+    # ==================================================
     # HISTORICAL SIMILARITY
+    # ==================================================
 
     ou_line = None
 
     if main_ou:
+
         ou_line = main_ou.get(
             "handicap"
         )
@@ -1410,12 +1433,22 @@ def analyze_match(match):
         ou_line=ou_line
     )
 
+    historical_rate = historical.get(
+        "goal_rate"
+    )
+
+    historical_sample = historical.get(
+        "sample_size",
+        0
+    )
+
     print(
         "HISTORICAL RATE:",
-        historical.get("goal_rate"),
+        historical_rate,
         "% | SAMPLE:",
-        historical.get("sample_size")
+        historical_sample
     )
+
     print(
         "SIGNAL SCORE:",
         f"{signal}/100",
@@ -1426,7 +1459,10 @@ def analyze_match(match):
         "| corners=",
         corners
     )
+
+    # ==================================================
     # SAVE HISTORY SNAPSHOT
+    # ==================================================
 
     if (
         total_shots is not None
@@ -1445,8 +1481,16 @@ def analyze_match(match):
             shots_on_target,
             corners,
             ou_line=ou_line,
-            ou_over=main_ou.get("over_odd") if main_ou else None,
-            ou_under=main_ou.get("under_odd") if main_ou else None
+            ou_over=(
+                main_ou.get("over_odd")
+                if main_ou
+                else None
+            ),
+            ou_under=(
+                main_ou.get("under_odd")
+                if main_ou
+                else None
+            )
         )
 
     else:
@@ -1456,6 +1500,359 @@ def analyze_match(match):
             fixture_id,
             "| LIVE STATISTICS INCOMPLETE"
         )
+
+    # ==================================================
+    # FINAL KÈO RUNG FILTER
+    # ==================================================
+
+    print(
+        "KÈO RUNG FILTER START:",
+        fixture_id
+    )
+
+    # --------------------------------------------------
+    # 1. PHẢI CÓ LIVE STATS ĐẦY ĐỦ
+    # --------------------------------------------------
+
+    if (
+        total_shots is None
+        or shots_on_target is None
+        or corners is None
+    ):
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| LIVE STATS INCOMPLETE"
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 2. PHẢI CÓ LINE KÈO RUNG
+    # --------------------------------------------------
+
+    if main_ou is None:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| NO VALID RUNG LINE"
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 3. PHẢI CÓ LỊCH SỬ
+    # --------------------------------------------------
+
+    if historical_rate is None:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| NO HISTORICAL RATE"
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 4. LỊCH SỬ PHẢI ĐỦ MẪU
+    # --------------------------------------------------
+
+    MIN_HISTORY_SAMPLE = 5
+
+    if historical_sample < MIN_HISTORY_SAMPLE:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| HISTORY SAMPLE TOO SMALL:",
+            historical_sample
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 5. LỊCH SỬ PHẢI CÓ TỶ LỆ BÀN TIẾP THEO
+    # --------------------------------------------------
+
+    MIN_HISTORICAL_RATE = 60.0
+
+    if historical_rate < MIN_HISTORICAL_RATE:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| HISTORICAL RATE LOW:",
+            historical_rate
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 6. KIỂM TRA ODDS
+    # --------------------------------------------------
+
+    over_odd = main_ou.get(
+        "over_odd"
+    )
+
+    under_odd = main_ou.get(
+        "under_odd"
+    )
+
+    if (
+        over_odd is None
+        or under_odd is None
+    ):
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| INVALID O/U ODDS"
+        )
+
+        return
+
+    try:
+
+        over_odd = float(
+            over_odd
+        )
+
+        under_odd = float(
+            under_odd
+        )
+
+    except:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| ODDS PARSE ERROR"
+        )
+
+        return
+
+    if over_odd <= 1.0:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| INVALID OVER ODDS:",
+            over_odd
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 7. XÁC SUẤT NGẦM ĐỊNH CỦA OVER
+    # --------------------------------------------------
+
+    implied_over_probability = (
+        1.0
+        / over_odd
+        * 100
+    )
+
+    odds_edge = (
+        historical_rate
+        - implied_over_probability
+    )
+
+    print(
+        "ODDS ANALYSIS:",
+        "Over=",
+        over_odd,
+        "| implied=",
+        round(
+            implied_over_probability,
+            1
+        ),
+        "%",
+        "| historical=",
+        historical_rate,
+        "%",
+        "| edge=",
+        round(
+            odds_edge,
+            1
+        ),
+        "%"
+    )
+
+    # --------------------------------------------------
+    # 8. ODDS PHẢI CÓ LỢI THẾ
+    # --------------------------------------------------
+
+    MIN_ODDS_EDGE = 5.0
+
+    if odds_edge < MIN_ODDS_EDGE:
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| ODDS EDGE TOO LOW:",
+            round(
+                odds_edge,
+                1
+            ),
+            "%"
+        )
+
+        return
+
+    # --------------------------------------------------
+    # 9. KIỂM TRA LIVE STATS
+    # --------------------------------------------------
+
+    stats_strength = 0
+
+    if total_shots >= 15:
+        stats_strength += 1
+
+    if shots_on_target >= 4:
+        stats_strength += 1
+
+    if corners >= 5:
+        stats_strength += 1
+
+    if goals_last_10 >= 1:
+        stats_strength += 1
+
+    if (
+        minutes_since_goal is not None
+        and minutes_since_goal <= 10
+    ):
+        stats_strength += 1
+
+    print(
+        "STATS STRENGTH:",
+        stats_strength,
+        "/5"
+    )
+
+    # --------------------------------------------------
+    # 10. NHÁNH SIGNAL MẠNH
+    # --------------------------------------------------
+
+    strong_signal_path = (
+        signal >= 70
+        and stats_strength >= 2
+        and historical_rate >= 60
+        and odds_edge >= 5
+    )
+
+    # --------------------------------------------------
+    # 11. NHÁNH SIGNAL THẤP NHƯNG CÁC YẾU TỐ KHÁC MẠNH
+    # --------------------------------------------------
+
+    combined_path = (
+        signal >= 55
+        and stats_strength >= 4
+        and historical_rate >= 65
+        and odds_edge >= 8
+    )
+
+    print(
+        "SIGNAL PATH:",
+        "STRONG="
+        , strong_signal_path,
+        "| COMBINED="
+        , combined_path
+    )
+
+    if not (
+        strong_signal_path
+        or combined_path
+    ):
+
+        print(
+            "KÈO RUNG REJECT:",
+            fixture_id,
+            "| COMBINED CONDITIONS NOT STRONG ENOUGH"
+        )
+
+        return
+
+    # ==================================================
+    # 12. TẠO CẢNH BÁO
+    # ==================================================
+
+    handicap = main_ou.get(
+        "handicap"
+    )
+
+    alert_message = (
+        "🚨 BETING · KÈO RUNG\n"
+        "\n"
+        f"⚽ {home} vs {away}\n"
+        f"⏱ {minute}' | "
+        f"{home_goals}-{away_goals}\n"
+        f"🔥 Signal: {signal}/100\n"
+        f"📊 Sút: {int(total_shots)} "
+        f"| SOT: {int(shots_on_target)} "
+        f"| Góc: {int(corners)}\n"
+        f"⚡ Bàn gần nhất: "
+        f"{latest_goal_minute}'\n"
+        if latest_goal_minute is not None
+        else
+        f"🚨 BETING · KÈO RUNG\n"
+        "\n"
+        f"⚽ {home} vs {away}\n"
+        f"⏱ {minute}' | "
+        f"{home_goals}-{away_goals}\n"
+        f"🔥 Signal: {signal}/100\n"
+        f"📊 Sút: {int(total_shots)} "
+        f"| SOT: {int(shots_on_target)} "
+        f"| Góc: {int(corners)}\n"
+    )
+
+    alert_message += (
+        f"📈 O/U rung: {handicap}\n"
+        f"💰 Over {handicap}: {over_odd}\n"
+        f"📉 Under {handicap}: {under_odd}\n"
+        f"🧠 Tình huống tương tự: "
+        f"{historical_rate}% có bàn tiếp theo\n"
+        f"📚 Mẫu lịch sử: "
+        f"{historical_sample} trận\n"
+        f"📐 Lợi thế so với odds: "
+        f"+{round(odds_edge, 1)} điểm %\n"
+        "\n"
+        "🎯 KẾT LUẬN: CÓ TÍN HIỆU KÈO RUNG"
+    )
+
+    print(
+        "🚨 KÈO RUNG TRIGGER:",
+        fixture_id
+    )
+
+    print(
+        alert_message
+    )
+
+    # ==================================================
+    # 13. GỬI TELEGRAM
+    # ==================================================
+
+    send_telegram(
+        alert_message
+    )
+
+    # ==================================================
+    # 14. MỖI TRẬN CHỈ ALERT 1 LẦN
+    # ==================================================
+
+    sent_alerts.add(
+        fixture_id
+    )
+
+    print(
+        "ALERT SENT:",
+        fixture_id,
+        "| ONE ALERT PER MATCH"
+    )
 def main():
 
     print("")
