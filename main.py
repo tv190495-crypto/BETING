@@ -382,13 +382,19 @@ def get_live_odds(fixture_id):
 
 
 def get_live_ou_market(odds):
+
     if not odds:
         return None
 
     try:
-        markets = odds[0].get("odds", [])
+
+        markets = odds[0].get(
+            "odds",
+            []
+        )
 
         for market in markets:
+
             market_name = str(
                 market.get("name", "")
             ).lower()
@@ -396,13 +402,22 @@ def get_live_ou_market(odds):
             if "over/under" not in market_name:
                 continue
 
-            values = market.get("values", [])
+            values = market.get(
+                "values",
+                []
+            )
 
             result = []
 
             for item in values:
-                value = item.get("value")
-                odd = item.get("odd")
+
+                value = item.get(
+                    "value"
+                )
+
+                odd = item.get(
+                    "odd"
+                )
 
                 if value is None or odd is None:
                     continue
@@ -418,6 +433,7 @@ def get_live_ou_market(odds):
                 })
 
             if result:
+
                 print(
                     "LIVE O/U MARKET:",
                     result
@@ -426,6 +442,7 @@ def get_live_ou_market(odds):
                 return result
 
     except Exception as e:
+
         print(
             "O/U PARSE ERROR:",
             e
