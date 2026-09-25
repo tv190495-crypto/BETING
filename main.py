@@ -330,9 +330,7 @@ def analyze_match(match):
     stats = get_statistics(
         fixture_id
     )
-   events = get_events(
-    fixture_id
-    )
+
 
     if not stats:
         print(
