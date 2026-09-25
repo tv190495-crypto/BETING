@@ -482,13 +482,17 @@ def calculate_signal(
     total_shots,
     shots_on_target,
     corners,
-    minutes_since_goal=None
+    minutes_since_goal=None,
+    goals_last_5=0,
+    goals_last_10=0,
+    goals_last_15=0,
+    goals_last_20=0
 ):
 
     signal = 0
 
     # =========================
-    # 1. THOI DIEM TRAN DAU
+    # 1. THỜI ĐIỂM TRẬN
     # =========================
 
     if minute >= 80:
@@ -505,7 +509,7 @@ def calculate_signal(
         signal += 5
 
     # =========================
-    # 2. SO BAN DA CO
+    # 2. TỔNG BÀN THẮNG
     # =========================
 
     if total_goals >= 4:
@@ -518,7 +522,7 @@ def calculate_signal(
         signal += 10
 
     # =========================
-    # 3. LIVE SHOTS
+    # 3. TỔNG SỐ CÚ SÚT
     # =========================
 
     if total_shots is not None:
@@ -535,7 +539,7 @@ def calculate_signal(
             signal += 5
 
     # =========================
-    # 4. SHOTS ON TARGET
+    # 4. SÚT TRÚNG ĐÍCH
     # =========================
 
     if shots_on_target is not None:
@@ -552,7 +556,7 @@ def calculate_signal(
             signal += 6
 
     # =========================
-    # 5. CORNERS
+    # 5. PHẠT GÓC
     # =========================
 
     if corners is not None:
@@ -567,7 +571,7 @@ def calculate_signal(
             signal += 4
 
     # =========================
-    # 6. TEMPO BAN THANG
+    # 6. BÀN GẦN NHẤT
     # =========================
 
     if minutes_since_goal is not None:
@@ -583,8 +587,46 @@ def calculate_signal(
         elif minutes_since_goal <= 25:
             signal += 3
 
-    return min(signal, 100)
+    # =========================
+    # 7. NHỊP BÀN 5 PHÚT
+    # =========================
 
+    if goals_last_5 >= 2:
+        signal += 15
+    elif goals_last_5 == 1:
+        signal += 10
+
+    # =========================
+    # 8. NHỊP BÀN 10 PHÚT
+    # =========================
+
+    if goals_last_10 >= 2:
+        signal += 12
+    elif goals_last_10 == 1:
+        signal += 7
+
+    # =========================
+    # 9. NHỊP BÀN 15 PHÚT
+    # =========================
+
+    if goals_last_15 >= 2:
+        signal += 10
+    elif goals_last_15 == 1:
+        signal += 5
+
+    # =========================
+    # 10. NHỊP BÀN 20 PHÚT
+    # =========================
+
+    if goals_last_20 >= 3:
+        signal += 8
+    elif goals_last_20 >= 2:
+        signal += 5
+
+    return min(
+        signal,
+        100
+    )
 def analyze_match(match):
 
     fixture = match.get(
