@@ -145,6 +145,63 @@ def get_live_odds(fixture_id):
     )
 
     return odds
+
+
+def get_live_ou_market(odds):
+    if not odds:
+        return None
+
+    try:
+        markets = odds[0].get("odds", [])
+
+        for market in markets:
+            market_name = str(
+                market.get("name", "")
+            ).lower()
+
+            if "over/under" not in market_name:
+                continue
+
+            values = market.get("values", [])
+
+            result = []
+
+            for item in values:
+                value = item.get("value")
+                odd = item.get("odd")
+
+                if value is None or odd is None:
+                    continue
+
+                try:
+                    odd = float(odd)
+                except:
+                    continue
+
+                result.append({
+                    "value": value,
+                    "odd": odd
+                })
+
+            if result:
+                print(
+                    "LIVE O/U MARKET:",
+                    result
+                )
+
+                return result
+
+    except Exception as e:
+        print(
+            "O/U PARSE ERROR:",
+            e
+        )
+
+    print(
+        "LIVE O/U MARKET UNAVAILABLE"
+    )
+
+    return None
     
 
 def get_stat_value(stats, team_name, stat_type):
