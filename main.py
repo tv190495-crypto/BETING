@@ -90,7 +90,14 @@ def get_statistics(fixture_id):
             "SKIP - NO LIVE STATISTICS:",
             fixture_id
         )
-        return
+        return None
+
+    print(
+        "LIVE STATISTICS AVAILABLE:",
+        fixture_id
+    )
+
+    return stats
 
     odds = get_live_odds(
         fixture_id
