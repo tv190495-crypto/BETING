@@ -720,6 +720,195 @@ def calculate_signal(
         signal,
         100
     )
+def get_historical_similarity(
+    minute,
+    total_goals,
+    total_shots,
+    shots_on_target,
+    corners,
+    ou_line=None
+):
+
+    if not history_data:
+        return {
+            "sample_size": 0,
+            "goal_rate": None
+        }
+
+    similar = []
+
+    for record in history_data:
+
+        try:
+            r_minute = float(
+                record.get("minute")
+            )
+
+            r_goals = int(
+                record.get("total_goals", 0)
+            )
+
+            r_shots = record.get(
+                "total_shots"
+            )
+
+            r_sot = record.get(
+                "total_sot"
+            )
+
+            r_corners = record.get(
+                "total_corners"
+            )
+
+            r_ou = record.get(
+                "ou_line"
+            )
+
+        except:
+            continue
+
+        if abs(r_minute - minute) > 8:
+            continue
+
+        if abs(r_goals - total_goals) > 1:
+            continue
+
+        if (
+            total_shots is not None
+            and r_shots is not None
+        ):
+
+            if abs(
+                float(r_shots)
+                - float(total_shots)
+            ) > 8:
+
+                continue
+
+        if (
+            shots_on_target is not None
+            and r_sot is not None
+        ):
+
+            if abs(
+                float(r_sot)
+                - float(shots_on_target)
+            ) > 4:
+
+                continue
+
+        if (
+            corners is not None
+            and r_corners is not None
+        ):
+
+            if abs(
+                float(r_corners)
+                - float(corners)
+            ) > 4:
+
+                continue
+
+        if (
+            ou_line is not None
+            and r_ou is not None
+        ):
+
+            try:
+
+                if abs(
+                    float(r_ou)
+                    - float(ou_line)
+                ) > 0.5:
+
+                    continue
+
+            except:
+                pass
+
+        similar.append(
+            record
+        )
+
+    if not similar:
+        return {
+            "sample_size": 0,
+            "goal_rate": None
+        }
+
+    goals_followed = 0
+
+    for current in similar:
+
+        fixture_id = current.get(
+            "fixture_id"
+        )
+
+        minute_now = current.get(
+            "minute"
+        )
+
+        goals_now = current.get(
+            "total_goals"
+        )
+
+        for later in history_data:
+
+            if later.get(
+                "fixture_id"
+            ) != fixture_id:
+
+                continue
+
+            try:
+
+                later_minute = float(
+                    later.get("minute")
+                )
+
+                later_goals = int(
+                    later.get(
+                        "total_goals",
+                        0
+                    )
+                )
+
+            except:
+
+                continue
+
+            if (
+                later_minute > float(minute_now)
+                and later_goals > int(goals_now)
+            ):
+
+                goals_followed += 1
+                break
+
+    sample_size = len(
+        similar
+    )
+
+    goal_rate = (
+        goals_followed
+        / sample_size
+        * 100
+    )
+
+    result = {
+        "sample_size": sample_size,
+        "goal_rate": round(
+            goal_rate,
+            1
+        )
+    }
+
+    print(
+        "HISTORICAL SIMILAR:",
+        result
+    )
+
+    return result
 def analyze_match(match):
 
     fixture = match.get(
