@@ -415,63 +415,107 @@ def calculate_signal(
     total_goals,
     total_shots,
     shots_on_target,
-    corners
+    corners,
+    minutes_since_goal=None
 ):
 
     signal = 0
 
-    # MINUTE
-    if minute >= 75:
+    # =========================
+    # 1. THOI DIEM TRAN DAU
+    # =========================
+
+    if minute >= 80:
         signal += 25
+    elif minute >= 75:
+        signal += 22
     elif minute >= 70:
-        signal += 20
+        signal += 18
     elif minute >= 65:
-        signal += 15
+        signal += 14
     elif minute >= 60:
         signal += 10
     elif minute >= 45:
         signal += 5
 
-    # GOALS
-    if total_goals >= 3:
+    # =========================
+    # 2. SO BAN DA CO
+    # =========================
+
+    if total_goals >= 4:
         signal += 20
+    elif total_goals == 3:
+        signal += 18
     elif total_goals == 2:
         signal += 15
     elif total_goals == 1:
         signal += 10
 
-    # LIVE STATISTICS
-    # Nếu API chưa có statistics thì không cộng điểm
+    # =========================
+    # 3. LIVE SHOTS
+    # =========================
+
     if total_shots is not None:
 
-        if total_shots >= 25:
+        if total_shots >= 30:
             signal += 20
+        elif total_shots >= 25:
+            signal += 17
         elif total_shots >= 20:
-            signal += 15
+            signal += 14
         elif total_shots >= 15:
-            signal += 10
+            signal += 9
         elif total_shots >= 10:
             signal += 5
 
+    # =========================
+    # 4. SHOTS ON TARGET
+    # =========================
+
     if shots_on_target is not None:
 
-        if shots_on_target >= 10:
+        if shots_on_target >= 12:
             signal += 20
+        elif shots_on_target >= 10:
+            signal += 17
         elif shots_on_target >= 8:
-            signal += 15
+            signal += 14
         elif shots_on_target >= 6:
             signal += 10
         elif shots_on_target >= 4:
-            signal += 5
+            signal += 6
+
+    # =========================
+    # 5. CORNERS
+    # =========================
 
     if corners is not None:
 
-        if corners >= 10:
+        if corners >= 12:
             signal += 10
-        elif corners >= 8:
+        elif corners >= 10:
             signal += 8
+        elif corners >= 8:
+            signal += 6
         elif corners >= 6:
-            signal += 5
+            signal += 4
+
+    # =========================
+    # 6. TEMPO BAN THANG
+    # =========================
+
+    if minutes_since_goal is not None:
+
+        if minutes_since_goal <= 5:
+            signal += 15
+        elif minutes_since_goal <= 10:
+            signal += 12
+        elif minutes_since_goal <= 15:
+            signal += 9
+        elif minutes_since_goal <= 20:
+            signal += 6
+        elif minutes_since_goal <= 25:
+            signal += 3
 
     return min(signal, 100)
 
