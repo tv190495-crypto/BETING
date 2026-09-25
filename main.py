@@ -498,13 +498,44 @@ def select_main_ou(
         elif "under" in value:
             pairs[handicap]["under"] = odd
 
-    valid_lines = []
+    # ==================================================
+    # KÈO RUNG:
+    # Ưu tiên line tổng bàn hiện tại + 0.5
+    # Sau đó +0.75
+    #
+    # Ví dụ:
+    # Tổng bàn = 1
+    #   Ưu tiên O/U 1.5
+    #   Nếu không có -> O/U 1.75
+    #
+    # Tổng bàn = 2
+    #   Ưu tiên O/U 2.5
+    #   Nếu không có -> O/U 2.75
+    # ==================================================
 
-    target_line = (
-        float(total_goals) + 0.5
+    total_goals = float(
+        total_goals
     )
 
-    for handicap, data in pairs.items():
+    preferred_lines = [
+        total_goals + 0.5,
+        total_goals + 0.75
+    ]
+
+    for preferred_line in preferred_lines:
+
+        # Làm tròn để tránh lỗi float
+        preferred_line = round(
+            preferred_line,
+            2
+        )
+
+        if preferred_line not in pairs:
+            continue
+
+        data = pairs[
+            preferred_line
+        ]
 
         if (
             "over" not in data
@@ -512,44 +543,28 @@ def select_main_ou(
         ):
             continue
 
-        valid_lines.append(
-            (
-                abs(
-                    handicap
-                    - target_line
-                ),
-                handicap,
-                data["over"],
-                data["under"]
-            )
+        result = {
+            "handicap": preferred_line,
+            "over_odd": data["over"],
+            "under_odd": data["under"]
+        }
+
+        print(
+            "MAIN LIVE O/U - KÈO RUNG:",
+            result
         )
 
-    if not valid_lines:
-        return None
-
-    valid_lines.sort(
-        key=lambda x: x[0]
-    )
-
-    (
-        distance,
-        handicap,
-        over_odd,
-        under_odd
-    ) = valid_lines[0]
-
-    result = {
-        "handicap": handicap,
-        "over_odd": over_odd,
-        "under_odd": under_odd
-    }
+        return result
 
     print(
-        "MAIN LIVE O/U:",
-        result
+        "KÈO RUNG O/U UNAVAILABLE:",
+        "total_goals=",
+        total_goals,
+        "| preferred=",
+        preferred_lines
     )
 
-    return result
+    return None
 def get_stat_value(stats, team_name, stat_type):
 
     for team_data in stats:
