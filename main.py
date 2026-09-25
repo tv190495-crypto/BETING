@@ -982,22 +982,16 @@ else:
         "| LIVE STATISTICS INCOMPLETE"
     )
 
-        print(
-            "HISTORY SNAPSHOT SKIPPED:",
-            fixture_id,
-            "| LIVE STATISTICS INCOMPLETE"
-        )
-
-    print(
-        "SIGNAL SCORE:",
-        f"{signal}/100",
-        "| shots=",
-        total_shots,
-        "| SOT=",
-        shots_on_target,
-        "| corners=",
-        corners
-    )
+print(
+    "SIGNAL SCORE:",
+    f"{signal}/100",
+    "| shots=",
+    total_shots,
+    "| SOT=",
+    shots_on_target,
+    "| corners=",
+    corners
+)
 def main():
 
     print("")
