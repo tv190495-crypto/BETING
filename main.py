@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+import json
 from datetime import datetime
 
 API_KEY = os.getenv("API_FOOTBALL_KEY")
