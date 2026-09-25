@@ -629,22 +629,20 @@ def analyze_match(match):
 
         return
 
-    # ==============================
     # LIVE STATISTICS
-    # ==============================
 
     stats = get_statistics(
         fixture_id
     )
 
-    # ==============================
     # LIVE EVENTS
-    # ==============================
 
     events = get_events(
         fixture_id
     )
+
     # GOAL TEMPO
+
     latest_goal_minute = None
     minutes_since_goal = None
 
@@ -657,15 +655,14 @@ def analyze_match(match):
         if latest_goal_minute is not None:
 
             minutes_since_goal = (
-                minute -
-                latest_goal_minute
+                minute - latest_goal_minute
             )
 
             print(
                 "GOAL TEMPO:",
                 "latest_goal=",
                 latest_goal_minute,
-                "' | minutes_since_goal=",
+                "| minutes_since_goal=",
                 minutes_since_goal
             )
 
@@ -680,21 +677,18 @@ def analyze_match(match):
         print(
             "GOAL TEMPO: EVENTS UNAVAILABLE"
         )
-    # ==============================
+
     # LIVE ODDS
-    # ==============================
 
     odds = get_live_odds(
         fixture_id
     )
 
-    # ==============================
     # DEFAULT STATISTICS
-    # ==============================
 
-    total_shots = 0
-    shots_on_target = 0
-    corners = 0
+    total_shots = None
+    shots_on_target = None
+    corners = None
 
     if stats:
 
@@ -710,10 +704,14 @@ def analyze_match(match):
             "Total Shots"
         )
 
-        total_shots = (
-            home_shots +
-            away_shots
-        )
+        if (
+            home_shots is not None
+            and away_shots is not None
+        ):
+
+            total_shots = (
+                home_shots + away_shots
+            )
 
         home_sot = get_stat_value(
             stats,
@@ -727,10 +725,14 @@ def analyze_match(match):
             "Shots on Goal"
         )
 
-        shots_on_target = (
-            home_sot +
-            away_sot
-        )
+        if (
+            home_sot is not None
+            and away_sot is not None
+        ):
+
+            shots_on_target = (
+                home_sot + away_sot
+            )
 
         home_corners = get_stat_value(
             stats,
@@ -744,10 +746,14 @@ def analyze_match(match):
             "Corner Kicks"
         )
 
-        corners = (
-            home_corners +
-            away_corners
-        )
+        if (
+            home_corners is not None
+            and away_corners is not None
+        ):
+
+            corners = (
+                home_corners + away_corners
+            )
 
         print(
             "LIVE STATS PARSED:",
@@ -766,12 +772,7 @@ def analyze_match(match):
             fixture_id
         )
 
-        total_shots = None
-        shots_on_target = None
-        corners = None
-    # ==============================
     # LIVE O/U
-    # ==============================
 
     ou_market = get_live_ou_market(
         odds
@@ -791,20 +792,17 @@ def analyze_match(match):
             fixture_id
         )
 
-    # ==============================
     # SIGNAL
-    # ==============================
 
-signal = calculate_signal(
-    minute=minute,
-    total_goals=total_goals,
-    total_shots=total_shots,
-    shots_on_target=shots_on_target,
-    corners=corners,
-    minutes_since_goal=minutes_since_goal
-)
+    signal = calculate_signal(
+        minute=minute,
+        total_goals=total_goals,
+        total_shots=total_shots,
+        shots_on_target=shots_on_target,
+        corners=corners,
+        minutes_since_goal=minutes_since_goal
+    )
 
-    # ==============================
     # SAVE HISTORY SNAPSHOT
 
     if (
