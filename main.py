@@ -216,6 +216,7 @@ def get_statistics(fixture_id):
         )
         return stats
 def get_events(fixture_id):
+
     events = api_get(
         "fixtures/events",
         {"fixture": fixture_id}
@@ -226,7 +227,72 @@ def get_events(fixture_id):
         events
     )
 
-    return events
+    if not events:
+        return {
+            "latest_goal_minute": None,
+            "minutes_since_goal": None,
+            "goals_last_5": 0,
+            "goals_last_10": 0,
+            "goals_last_15": 0,
+            "goals_last_20": 0
+        }
+
+    goal_minutes = []
+
+    for event in events:
+
+        if event.get("type") != "Goal":
+            continue
+
+        time_data = event.get(
+            "time",
+            {}
+        )
+
+        elapsed = time_data.get(
+            "elapsed"
+        )
+
+        if elapsed is None:
+            continue
+
+        try:
+            elapsed = int(elapsed)
+        except:
+            continue
+
+        goal_minutes.append(
+            elapsed
+        )
+
+    goal_minutes.sort()
+
+    if not goal_minutes:
+
+        return {
+            "latest_goal_minute": None,
+            "minutes_since_goal": None,
+            "goals_last_5": 0,
+            "goals_last_10": 0,
+            "goals_last_15": 0,
+            "goals_last_20": 0
+        }
+
+    latest_goal_minute = goal_minutes[-1]
+
+    print(
+        "GOAL MINUTES:",
+        goal_minutes
+    )
+
+    return {
+        "latest_goal_minute": latest_goal_minute,
+        "minutes_since_goal": None,
+        "goals_last_5": 0,
+        "goals_last_10": 0,
+        "goals_last_15": 0,
+        "goals_last_20": 0
+    }
 
 def get_live_odds(fixture_id):
     odds = api_get(
