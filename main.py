@@ -84,10 +84,12 @@ def get_statistics(fixture_id):
         "fixtures/statistics",
         {"fixture": fixture_id}
     )
-print(
-    "STATISTICS RAW:",
-    stats
-)
+
+    print(
+        "STATISTICS RAW:",
+        stats
+    )
+
     if not stats:
         print(
             "SKIP - NO LIVE STATISTICS:",
@@ -101,7 +103,6 @@ print(
     )
 
     return stats
-
     odds = get_live_odds(
         fixture_id
     )
