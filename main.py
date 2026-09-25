@@ -481,7 +481,15 @@ def analyze_match(match):
         "fixture",
         {}
     )
+    league = match.get(
+        "league",
+        {}
+    )
 
+    print(
+        "LEAGUE COVERAGE:",
+        league
+    )
     teams = match.get(
         "teams",
         {}
