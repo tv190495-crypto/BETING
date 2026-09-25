@@ -751,30 +751,31 @@ def analyze_match(match):
 
     # ==============================
     # SAVE HISTORY SNAPSHOT
-    # ==============================
+    if (
+        total_shots is not None
+        and shots_on_target is not None
+        and corners is not None
+    ):
 
-    save_match_snapshot(
-        fixture_id,
-        home,
-        away,
-        minute,
-        home_goals,
-        away_goals,
-        total_shots,
-        shots_on_target,
-        corners
-    )
-    print(
-        "SIGNAL SCORE:",
-        f"{signal}/100",
-        "| shots=",
-        total_shots,
-        "| SOT=",
-        shots_on_target,
-        "| corners=",
-        corners
-    )
+        save_match_snapshot(
+            fixture_id,
+            home,
+            away,
+            minute,
+            home_goals,
+            away_goals,
+            total_shots,
+            shots_on_target,
+            corners
+        )
 
+    else:
+
+        print(
+            "HISTORY SNAPSHOT SKIPPED:",
+            fixture_id,
+            "| LIVE STATISTICS INCOMPLETE"
+        )
 def main():
 
     print("")
