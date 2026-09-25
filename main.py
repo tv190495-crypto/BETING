@@ -271,12 +271,18 @@ def analyze_match(match):
         fixture_id
     )
 
-if not stats:
-    print("SKIP - NO LIVE STATISTICS:", fixture_id)
-    return
-
-
+    if not stats:
+        print(
+            "SKIP - NO LIVE STATISTICS:",
+            fixture_id
+        )
         return
+
+    home_shots = get_stat_value(
+        stats,
+        home,
+        "Total Shots"
+    )
 
     home_shots = get_stat_value(
         stats,
