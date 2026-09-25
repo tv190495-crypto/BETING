@@ -352,56 +352,62 @@ def calculate_signal(
     corners
 ):
 
-    score = 0
+    signal = 0
 
+    # MINUTE
     if minute >= 75:
-        score += 25
+        signal += 25
     elif minute >= 70:
-        score += 20
+        signal += 20
     elif minute >= 65:
-        score += 15
+        signal += 15
     elif minute >= 60:
-        score += 10
+        signal += 10
     elif minute >= 45:
-        score += 5
+        signal += 5
 
+    # GOALS
     if total_goals >= 3:
-        score += 20
+        signal += 20
     elif total_goals == 2:
-        score += 15
+        signal += 15
     elif total_goals == 1:
-        score += 10
+        signal += 10
 
-    if total_shots >= 25:
-        score += 20
-    elif total_shots >= 20:
-        score += 15
-    elif total_shots >= 15:
-        score += 10
-    elif total_shots >= 10:
-        score += 5
+    # LIVE STATISTICS
+    # Nếu API chưa có statistics thì không cộng điểm
+    if total_shots is not None:
 
-    if shots_on_target >= 10:
-        score += 20
-    elif shots_on_target >= 8:
-        score += 15
-    elif shots_on_target >= 6:
-        score += 10
-    elif shots_on_target >= 4:
-        score += 5
+        if total_shots >= 25:
+            signal += 20
+        elif total_shots >= 20:
+            signal += 15
+        elif total_shots >= 15:
+            signal += 10
+        elif total_shots >= 10:
+            signal += 5
 
-    if corners >= 10:
-        score += 10
-    elif corners >= 8:
-        score += 8
-    elif corners >= 6:
-        score += 5
+    if shots_on_target is not None:
 
-    if score > 100:
-        score = 100
+        if shots_on_target >= 10:
+            signal += 20
+        elif shots_on_target >= 8:
+            signal += 15
+        elif shots_on_target >= 6:
+            signal += 10
+        elif shots_on_target >= 4:
+            signal += 5
 
-    return score
+    if corners is not None:
 
+        if corners >= 10:
+            signal += 10
+        elif corners >= 8:
+            signal += 8
+        elif corners >= 6:
+            signal += 5
+
+    return min(signal, 100)
 
 def analyze_match(match):
 
