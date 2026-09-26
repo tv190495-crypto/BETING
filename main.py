@@ -501,7 +501,10 @@ def select_main_ou(
         result = {
             "handicap": preferred_line,
             "over_odd": data["over"],
-            "under_odd": data["under"]
+            "under_odd": data["under"],
+            # Chỉ line current goals + 0.5 tương đương chính xác với
+            # biến cố "có ít nhất 1 bàn nữa". +0.75 là Asian split line.
+            "next_goal_compatible": abs(preferred_line - (total_goals + 0.5)) < 0.001
         }
 
         print(
@@ -1253,6 +1256,12 @@ def analyze_match(match):
         print("COLLECTED - NO ALERT BEFORE", ALERT_FROM_MINUTE, "MIN:", fixture_id)
         return
 
+    # HT là khoảng nghỉ, không phải thời gian bóng đang lăn. Vẫn lưu snapshot
+    # để history biết trạng thái 45', nhưng không phát tín hiệu rung tại HT.
+    if match_status == "HT":
+        print("COLLECTED AT HT - ALERT PAUSED:", fixture_id)
+        return
+
     # ==================================================
     # FINAL KÈO RUNG FILTER
     # ==================================================
@@ -1292,6 +1301,16 @@ def analyze_match(match):
             "| NO VALID RUNG LINE"
         )
 
+        return
+
+    # Historical "có bàn tiếp theo" chỉ cùng payoff event với Over G+0.5.
+    # Không dùng xác suất next-goal để định giá Asian +0.75/+1.0...
+    if not main_ou.get("next_goal_compatible", False):
+        print(
+            "KÈO RUNG REJECT:", fixture_id,
+            "| ASIAN LINE NOT NEXT-GOAL COMPARABLE:",
+            main_ou.get("handicap")
+        )
         return
 
     # --------------------------------------------------
@@ -1613,7 +1632,7 @@ def main():
 
     print("")
     print("================================")
-    print("BETING V4.1 STARTED")
+    print("BETING V4.2 STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
     print("================================")
@@ -1643,7 +1662,7 @@ def main():
         return
 
     send_telegram(
-        "BETING V4.1 DA KHOI DONG!\n\n"
+        "BETING V4.2 DA KHOI DONG!\n\n"
         "Live football analysis\n"
         "Live statistics\n"
         "Keo rung signal engine V4\n"
