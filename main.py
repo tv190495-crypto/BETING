@@ -68,20 +68,10 @@ CHECK_INTERVAL = 60
 sent_alerts = set()
 
 def save_match_snapshot(
-    fixture_id,
-    home_team,
-    away_team,
-    minute,
-    home_goals,
-    away_goals,
-    total_shots,
-    total_sot,
-    total_corners,
-    ou_line=None,
-    ou_over=None,
-    ou_under=None
+    fixture_id, home_team, away_team, minute,
+    home_goals, away_goals, total_shots, total_sot, total_corners,
+    ou_line=None, ou_over=None, ou_under=None
 ):
-
     snapshot = {
         "timestamp": datetime.now().astimezone().isoformat(),
         "fixture_id": fixture_id,
@@ -99,27 +89,29 @@ def save_match_snapshot(
         "ou_under": ou_under
     }
 
-    history_data.append(snapshot)
+    # Một fixture chỉ giữ một snapshot cho mỗi phút. Nếu API trả lại
+    # cùng phút, cập nhật bản mới nhất thay vì làm phình history.
+    replaced = False
+    for i in range(len(history_data) - 1, -1, -1):
+        old = history_data[i]
+        if old.get("fixture_id") == fixture_id and old.get("minute") == minute:
+            history_data[i] = snapshot
+            replaced = True
+            break
+
+    if not replaced:
+        history_data.append(snapshot)
 
     save_history(history_data)
-
     print(
-        "HISTORY SNAPSHOT SAVED:",
-        fixture_id,
-        "|",
-        minute,
-        "'",
-        "|",
-        home_goals,
-        "-",
-        away_goals,
-        "| SHOTS:",
-        total_shots,
-        "| SOT:",
-        total_sot,
-        "| CORNERS:",
-        total_corners
+        "HISTORY SNAPSHOT", "UPDATED" if replaced else "SAVED",
+        fixture_id, "|", minute, "'", "|",
+        home_goals, "-", away_goals,
+        "| SHOTS:", total_shots, "| SOT:", total_sot,
+        "| CORNERS:", total_corners
     )
+
+
 def api_get(endpoint, params=None):
 
     try:
@@ -187,34 +179,14 @@ def get_statistics(fixture_id):
         {"fixture": fixture_id}
     )
 
-    print(
-        "STATISTICS RAW:",
-        stats
-    )
-
     if not stats:
-        print(
-            "SKIP - NO LIVE STATISTICS:",
-            fixture_id
-        )
+        print("SKIP - NO LIVE STATISTICS:", fixture_id)
         return None
 
-    print(
-        "LIVE STATISTICS AVAILABLE:",
-        fixture_id
-    )
-
+    print("LIVE STATISTICS AVAILABLE:", fixture_id)
     return stats
-    odds = get_live_odds(
-        fixture_id
-    )
 
-    if not odds:
-        print(
-            "SKIP - NO LIVE ODDS:",
-            fixture_id
-        )
-        return stats
+
 def get_events(fixture_id):
 
     events = api_get(
@@ -604,90 +576,65 @@ def get_stat_value(stats, team_name, stat_type):
 
 
 def calculate_signal(
-    minute,
-    total_goals,
-    total_shots,
-    shots_on_target,
-    corners,
-    minutes_since_goal=None,
-    goals_last_5=0,
-    goals_last_10=0,
-    goals_last_15=0,
-    goals_last_20=0
+    minute, total_goals, total_shots, shots_on_target, corners,
+    minutes_since_goal=None, goals_last_5=0, goals_last_10=0,
+    goals_last_15=0, goals_last_20=0
 ):
-
+    # V4: score cường độ, không phải xác suất %.
     signal = 0
 
-    # =========================
-    # 1. THỜI ĐIỂM TRẬN
-    # =========================
-
+    # Thời điểm trận: tối đa 20 điểm.
     if minute >= 80:
-        signal += 25
+        signal += 20
     elif minute >= 75:
-        signal += 22
-    elif minute >= 70:
         signal += 18
+    elif minute >= 70:
+        signal += 15
     elif minute >= 65:
-        signal += 14
+        signal += 12
     elif minute >= 60:
-        signal += 10
+        signal += 9
     elif minute >= 45:
         signal += 5
 
-    # =========================
-    # 2. TỔNG BÀN THẮNG
-    # =========================
-
+    # Tổng bàn: tối đa 12 điểm.
     if total_goals >= 4:
-        signal += 20
+        signal += 12
     elif total_goals == 3:
-        signal += 18
-    elif total_goals == 2:
-        signal += 15
-    elif total_goals == 1:
         signal += 10
+    elif total_goals == 2:
+        signal += 8
+    elif total_goals == 1:
+        signal += 5
 
-    # =========================
-    # 3. TỔNG SỐ CÚ SÚT
-    # =========================
-
+    # Cường độ sút: tối đa 25 điểm.
     if total_shots is not None:
-
         if total_shots >= 30:
-            signal += 20
+            signal += 25
         elif total_shots >= 25:
-            signal += 17
+            signal += 21
         elif total_shots >= 20:
-            signal += 14
-        elif total_shots >= 15:
-            signal += 9
-        elif total_shots >= 10:
-            signal += 5
-
-    # =========================
-    # 4. SÚT TRÚNG ĐÍCH
-    # =========================
-
-    if shots_on_target is not None:
-
-        if shots_on_target >= 12:
-            signal += 20
-        elif shots_on_target >= 10:
             signal += 17
+        elif total_shots >= 15:
+            signal += 12
+        elif total_shots >= 10:
+            signal += 7
+
+    # Chất lượng cú sút: tối đa 23 điểm.
+    if shots_on_target is not None:
+        if shots_on_target >= 12:
+            signal += 23
+        elif shots_on_target >= 10:
+            signal += 20
         elif shots_on_target >= 8:
-            signal += 14
+            signal += 17
         elif shots_on_target >= 6:
-            signal += 10
+            signal += 13
         elif shots_on_target >= 4:
-            signal += 6
+            signal += 8
 
-    # =========================
-    # 5. PHẠT GÓC
-    # =========================
-
+    # Góc: proxy áp lực, tối đa 10 điểm.
     if corners is not None:
-
         if corners >= 12:
             signal += 10
         elif corners >= 10:
@@ -697,353 +644,182 @@ def calculate_signal(
         elif corners >= 6:
             signal += 4
 
-    # =========================
-    # 6. BÀN GẦN NHẤT
-    # =========================
+    # Nhịp bàn chỉ cộng MỘT lần để tránh double counting 5/10/15/20.
+    tempo_points = 0
+    if goals_last_5 >= 1:
+        tempo_points = 10
+    elif goals_last_10 >= 1:
+        tempo_points = 8
+    elif goals_last_15 >= 1:
+        tempo_points = 5
+    elif goals_last_20 >= 1:
+        tempo_points = 3
+    elif minutes_since_goal is not None and minutes_since_goal <= 25:
+        tempo_points = 2
+    signal += tempo_points
 
-    if minutes_since_goal is not None:
+    return min(signal, 100)
 
-        if minutes_since_goal <= 5:
-            signal += 15
-        elif minutes_since_goal <= 10:
-            signal += 12
-        elif minutes_since_goal <= 15:
-            signal += 9
-        elif minutes_since_goal <= 20:
-            signal += 6
-        elif minutes_since_goal <= 25:
-            signal += 3
 
-    # =========================
-    # 7. NHỊP BÀN 5 PHÚT
-    # =========================
+def _safe_float(value):
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
-    if goals_last_5 >= 2:
-        signal += 15
-    elif goals_last_5 == 1:
-        signal += 10
 
-    # =========================
-    # 8. NHỊP BÀN 10 PHÚT
-    # =========================
+def _future_goal_outcome(record, horizon=None):
+    """
+    True  = có bàn sau snapshot (trong horizon nếu horizon != None)
+    False = đủ dữ liệu theo dõi nhưng không có bàn
+    None  = chưa đủ dữ liệu để kết luận âm tính
+    """
+    fixture_id = record.get("fixture_id")
+    minute_now = _safe_float(record.get("minute"))
+    goals_now = _safe_float(record.get("total_goals"))
+    if fixture_id is None or minute_now is None or goals_now is None:
+        return None
 
-    if goals_last_10 >= 2:
-        signal += 12
-    elif goals_last_10 == 1:
-        signal += 7
+    future = []
+    for later in history_data:
+        if later.get("fixture_id") != fixture_id:
+            continue
+        lm = _safe_float(later.get("minute"))
+        lg = _safe_float(later.get("total_goals"))
+        if lm is None or lg is None or lm <= minute_now:
+            continue
+        future.append((lm, lg))
 
-    # =========================
-    # 9. NHỊP BÀN 15 PHÚT
-    # =========================
+    if not future:
+        return None
 
-    if goals_last_15 >= 2:
-        signal += 10
-    elif goals_last_15 == 1:
-        signal += 5
+    future.sort()
+    if horizon is None:
+        # Chỉ kết luận False nếu history đã đi đủ xa về cuối trận.
+        if any(lg > goals_now for _, lg in future):
+            return True
+        max_minute = max(m for m, _ in future)
+        return False if max_minute >= 88 else None
 
-    # =========================
-    # 10. NHỊP BÀN 20 PHÚT
-    # =========================
+    target = minute_now + horizon
+    for lm, lg in future:
+        if lm <= target and lg > goals_now:
+            return True
 
-    if goals_last_20 >= 3:
-        signal += 8
-    elif goals_last_20 >= 2:
-        signal += 5
+    # Muốn kết luận không có bàn trong N phút thì phải có snapshot
+    # ít nhất tới target (cho phép thiếu 1 phút do polling/API delay).
+    max_minute = max(m for m, _ in future)
+    if max_minute >= target - 1:
+        return False
+    return None
 
-    return min(
-        signal,
-        100
-    )
+
+def _rate_for_horizon(records, horizon):
+    outcomes = [_future_goal_outcome(r, horizon) for r in records]
+    known = [x for x in outcomes if x is not None]
+    if not known:
+        return None, 0
+    rate = sum(1 for x in known if x) / len(known) * 100
+    return round(rate, 1), len(known)
+
+
 def get_historical_similarity(
-    minute,
-    total_goals,
-    total_shots,
-    shots_on_target,
-    corners,
-    ou_line=None
+    minute, total_goals, total_shots, shots_on_target, corners,
+    ou_line=None, current_fixture_id=None, max_matches=50
 ):
-
     if not history_data:
-
         return {
-            "sample_size": 0,
-            "goal_rate": None
+            "sample_size": 0, "goal_rate": None,
+            "goal_rate_5": None, "sample_5": 0,
+            "goal_rate_10": None, "sample_10": 0,
+            "goal_rate_15": None, "sample_15": 0
         }
 
-    similar = []
-
+    candidates = []
     for record in history_data:
-
-        try:
-
-            r_fixture_id = record.get(
-                "fixture_id"
-            )
-
-            r_minute = float(
-                record.get("minute")
-            )
-
-            r_goals = int(
-                record.get(
-                    "total_goals",
-                    0
-                )
-            )
-
-            r_shots = record.get(
-                "total_shots"
-            )
-
-            r_sot = record.get(
-                "total_sot"
-            )
-
-            r_corners = record.get(
-                "total_corners"
-            )
-
-            r_ou = record.get(
-                "ou_line"
-            )
-
-        except:
-
+        rid = record.get("fixture_id")
+        if rid is None or rid == current_fixture_id:
             continue
 
-        # Không dùng snapshot hiện tại
-        if (
-            r_fixture_id is None
-        ):
-
+        rm = _safe_float(record.get("minute"))
+        rg = _safe_float(record.get("total_goals"))
+        rs = _safe_float(record.get("total_shots"))
+        rt = _safe_float(record.get("total_sot"))
+        rc = _safe_float(record.get("total_corners"))
+        ro = _safe_float(record.get("ou_line"))
+        if rm is None or rg is None:
             continue
 
-        # 1. Phút tương tự
-        if abs(
-            r_minute - float(minute)
-        ) > 8:
-
+        # Cổng rộng để loại các trạng thái hoàn toàn khác trước khi xếp hạng.
+        if abs(rm - float(minute)) > 12:
+            continue
+        if abs(rg - float(total_goals)) > 1:
             continue
 
-        # 2. Tổng số bàn tương tự
-        if abs(
-            r_goals - int(total_goals)
-        ) > 1:
+        # Distance chuẩn hóa. Càng thấp càng giống.
+        distance = abs(rm - float(minute)) / 6.0
+        distance += abs(rg - float(total_goals)) * 1.5
+        if total_shots is not None and rs is not None:
+            distance += abs(rs - float(total_shots)) / 6.0
+        else:
+            distance += 0.75
+        if shots_on_target is not None and rt is not None:
+            distance += abs(rt - float(shots_on_target)) / 3.0
+        else:
+            distance += 0.75
+        if corners is not None and rc is not None:
+            distance += abs(rc - float(corners)) / 3.0
+        else:
+            distance += 0.5
+        if ou_line is not None and ro is not None:
+            distance += abs(ro - float(ou_line)) / 0.5
 
-            continue
+        candidates.append((distance, record))
 
-        # 3. Tổng cú sút
-        if (
-            total_shots is not None
-            and r_shots is not None
-        ):
+    # Mỗi fixture lấy snapshot giống trạng thái hiện tại NHẤT.
+    best_by_fixture = {}
+    for distance, record in candidates:
+        rid = record.get("fixture_id")
+        old = best_by_fixture.get(rid)
+        if old is None or distance < old[0]:
+            best_by_fixture[rid] = (distance, record)
 
-            try:
+    ranked = sorted(best_by_fixture.values(), key=lambda x: x[0])
+    selected = [record for _, record in ranked[:max_matches]]
 
-                if abs(
-                    float(r_shots)
-                    - float(total_shots)
-                ) > 8:
-
-                    continue
-
-            except:
-
-                continue
-
-        # 4. Sút trúng đích
-        if (
-            shots_on_target is not None
-            and r_sot is not None
-        ):
-
-            try:
-
-                if abs(
-                    float(r_sot)
-                    - float(shots_on_target)
-                ) > 4:
-
-                    continue
-
-            except:
-
-                continue
-
-        # 5. Phạt góc
-        if (
-            corners is not None
-            and r_corners is not None
-        ):
-
-            try:
-
-                if abs(
-                    float(r_corners)
-                    - float(corners)
-                ) > 4:
-
-                    continue
-
-            except:
-
-                continue
-
-        # 6. O/U live
-        if (
-            ou_line is not None
-            and r_ou is not None
-        ):
-
-            try:
-
-                if abs(
-                    float(r_ou)
-                    - float(ou_line)
-                ) > 0.5:
-
-                    continue
-
-            except:
-
-                continue
-
-        similar.append(
-            record
-        )
-
-    if not similar:
-
+    if not selected:
         return {
-            "sample_size": 0,
-            "goal_rate": None
+            "sample_size": 0, "goal_rate": None,
+            "goal_rate_5": None, "sample_5": 0,
+            "goal_rate_10": None, "sample_10": 0,
+            "goal_rate_15": None, "sample_15": 0
         }
 
-    # ==================================================
-    # MỖI TRẬN CHỈ TÍNH 1 LẦN
-    # ==================================================
+    # Any-next-goal dùng để so với line O/U +0.5. Chỉ lấy outcome đã biết.
+    any_outcomes = [_future_goal_outcome(r, None) for r in selected]
+    any_known = [x for x in any_outcomes if x is not None]
+    goal_rate = None
+    if any_known:
+        goal_rate = round(sum(1 for x in any_known if x) / len(any_known) * 100, 1)
 
-    unique_fixtures = {}
-
-    for record in similar:
-
-        fixture_id = record.get(
-            "fixture_id"
-        )
-
-        if fixture_id is None:
-            continue
-
-        if fixture_id not in unique_fixtures:
-
-            unique_fixtures[
-                fixture_id
-            ] = record
-
-    similar_unique = list(
-        unique_fixtures.values()
-    )
-
-    if not similar_unique:
-
-        return {
-            "sample_size": 0,
-            "goal_rate": None
-        }
-
-    # ==================================================
-    # KIỂM TRA CÓ BÀN TIẾP THEO
-    # ==================================================
-
-    goals_followed = 0
-
-    for current in similar_unique:
-
-        fixture_id = current.get(
-            "fixture_id"
-        )
-
-        try:
-
-            minute_now = float(
-                current.get("minute")
-            )
-
-            goals_now = int(
-                current.get(
-                    "total_goals",
-                    0
-                )
-            )
-
-        except:
-
-            continue
-
-        had_later_goal = False
-
-        for later in history_data:
-
-            if (
-                later.get("fixture_id")
-                != fixture_id
-            ):
-
-                continue
-
-            try:
-
-                later_minute = float(
-                    later.get("minute")
-                )
-
-                later_goals = int(
-                    later.get(
-                        "total_goals",
-                        0
-                    )
-                )
-
-            except:
-
-                continue
-
-            if (
-                later_minute > minute_now
-                and later_goals > goals_now
-            ):
-
-                had_later_goal = True
-                break
-
-        if had_later_goal:
-
-            goals_followed += 1
-
-    sample_size = len(
-        similar_unique
-    )
-
-    goal_rate = (
-        goals_followed
-        / sample_size
-        * 100
-    )
+    rate5, sample5 = _rate_for_horizon(selected, 5)
+    rate10, sample10 = _rate_for_horizon(selected, 10)
+    rate15, sample15 = _rate_for_horizon(selected, 15)
 
     result = {
-        "sample_size": sample_size,
-        "goal_rate": round(
-            goal_rate,
-            1
-        )
+        "sample_size": len(any_known),
+        "selected_matches": len(selected),
+        "goal_rate": goal_rate,
+        "goal_rate_5": rate5, "sample_5": sample5,
+        "goal_rate_10": rate10, "sample_10": sample10,
+        "goal_rate_15": rate15, "sample_15": sample15
     }
-
-    print(
-        "HISTORICAL SIMILAR:",
-        result
-    )
-
+    print("HISTORICAL SIMILAR V4:", result)
     return result
+
+
 def analyze_match(match):
 
     fixture = match.get(
@@ -1430,7 +1206,8 @@ def analyze_match(match):
         total_shots=total_shots,
         shots_on_target=shots_on_target,
         corners=corners,
-        ou_line=ou_line
+        ou_line=ou_line,
+        current_fixture_id=fixture_id
     )
 
     historical_rate = historical.get(
@@ -1441,6 +1218,13 @@ def analyze_match(match):
         "sample_size",
         0
     )
+
+    historical_rate_5 = historical.get("goal_rate_5")
+    historical_rate_10 = historical.get("goal_rate_10")
+    historical_rate_15 = historical.get("goal_rate_15")
+    historical_sample_5 = historical.get("sample_5", 0)
+    historical_sample_10 = historical.get("sample_10", 0)
+    historical_sample_15 = historical.get("sample_15", 0)
 
     print(
         "HISTORICAL RATE:",
@@ -1650,16 +1434,16 @@ def analyze_match(match):
     # 7. XÁC SUẤT NGẦM ĐỊNH CỦA OVER
     # --------------------------------------------------
 
-    implied_over_probability = (
-        1.0
-        / over_odd
-        * 100
-    )
+    if over_odd <= 1.0 or under_odd <= 1.0:
+        print("KÈO RUNG REJECT:", fixture_id, "| INVALID TWO-WAY ODDS")
+        return
 
-    odds_edge = (
-        historical_rate
-        - implied_over_probability
-    )
+    raw_over = 1.0 / over_odd
+    raw_under = 1.0 / under_odd
+    market_margin = raw_over + raw_under
+    implied_over_probability = raw_over / market_margin * 100
+
+    odds_edge = historical_rate - implied_over_probability
 
     print(
         "ODDS ANALYSIS:",
@@ -1813,12 +1597,16 @@ def analyze_match(match):
         f"📈 O/U rung: {handicap}\n"
         f"💰 Over {handicap}: {over_odd}\n"
         f"📉 Under {handicap}: {under_odd}\n"
-        f"🧠 Tình huống tương tự: "
-        f"{historical_rate}% có bàn tiếp theo\n"
-        f"📚 Mẫu lịch sử: "
-        f"{historical_sample} trận\n"
-        f"📐 Lợi thế so với odds: "
-        f"+{round(odds_edge, 1)} điểm %\n"
+        f"🧠 Có bàn tiếp theo: {historical_rate}% "
+        f"({historical_sample} mẫu đủ dữ liệu)\n"
+        f"⏳ ≤5 phút: {historical_rate_5 if historical_rate_5 is not None else 'N/A'}% "
+        f"({historical_sample_5} mẫu)\n"
+        f"⏳ ≤10 phút: {historical_rate_10 if historical_rate_10 is not None else 'N/A'}% "
+        f"({historical_sample_10} mẫu)\n"
+        f"⏳ ≤15 phút: {historical_rate_15 if historical_rate_15 is not None else 'N/A'}% "
+        f"({historical_sample_15} mẫu)\n"
+        f"📐 Fair market Over: {round(implied_over_probability, 1)}%\n"
+        f"📐 Historical edge: {round(odds_edge, 1):+} điểm %\n"
         "\n"
         "🎯 KẾT LUẬN: CÓ TÍN HIỆU KÈO RUNG"
     )
@@ -1857,7 +1645,7 @@ def main():
 
     print("")
     print("================================")
-    print("BETING V3 STARTED")
+    print("BETING V4 STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
     print("================================")
@@ -1887,10 +1675,11 @@ def main():
         return
 
     send_telegram(
-        "BETING V3 DA KHOI DONG!\n\n"
+        "BETING V4 DA KHOI DONG!\n\n"
         "Live football analysis\n"
         "Live statistics\n"
-        "Keo rung signal engine\n"
+        "Keo rung signal engine V4\n"
+        "History 5/10/15m + no-vig odds\n"
         "Anti spam enabled"
     )
 
