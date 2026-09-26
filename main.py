@@ -64,13 +64,15 @@ HEADERS = {
 }
 
 CHECK_INTERVAL = 60
+COLLECT_FROM_MINUTE = 30
+ALERT_FROM_MINUTE = 45
 
 sent_alerts = set()
 
 def save_match_snapshot(
     fixture_id, home_team, away_team, minute,
     home_goals, away_goals, total_shots, total_sot, total_corners,
-    ou_line=None, ou_over=None, ou_under=None
+    ou_line=None, ou_over=None, ou_under=None, data_quality="FULL"
 ):
     snapshot = {
         "timestamp": datetime.now().astimezone().isoformat(),
@@ -86,7 +88,8 @@ def save_match_snapshot(
         "total_corners": total_corners,
         "ou_line": ou_line,
         "ou_over": ou_over,
-        "ou_under": ou_under
+        "ou_under": ou_under,
+        "data_quality": data_quality
     }
 
     # Một fixture chỉ giữ một snapshot cho mỗi phút. Nếu API trả lại
@@ -187,7 +190,7 @@ def get_statistics(fixture_id):
     return stats
 
 
-def get_events(fixture_id):
+def get_events(fixture_id, current_minute):
 
     events = api_get(
         "fixtures/events",
@@ -251,31 +254,11 @@ def get_events(fixture_id):
 
     latest_goal_minute = goal_minutes[-1]
 
-    # Lấy phút hiện tại từ fixture
-    current_fixture = api_get(
-        "fixtures",
-        {"id": fixture_id}
-    )
-
-    current_minute = 0
-
-    if current_fixture:
-
-        try:
-            current_minute = (
-                current_fixture[0]
-                .get("fixture", {})
-                .get("status", {})
-                .get("elapsed")
-                or 0
-            )
-
-            current_minute = int(
-                current_minute
-            )
-
-        except:
-            current_minute = 0
+    # current_minute đã có từ live fixtures; không gọi thêm /fixtures?id=.
+    try:
+        current_minute = int(current_minute or 0)
+    except (TypeError, ValueError):
+        current_minute = 0
 
     minutes_since_goal = (
         current_minute - latest_goal_minute
@@ -915,14 +898,13 @@ def analyze_match(match):
 
         return
 
-    if minute < 45:
-
-        print(
-            "SKIP EARLY MATCH:",
-            fixture_id
-        )
-
+    if minute < COLLECT_FROM_MINUTE:
+        print("SKIP BEFORE COLLECTION WINDOW:", fixture_id, "| minute=", minute)
         return
+
+    alert_eligible_by_time = minute >= ALERT_FROM_MINUTE
+    if not alert_eligible_by_time:
+        print("COLLECT ONLY - BEFORE ALERT WINDOW:", fixture_id, "| minute=", minute)
 
     if fixture_id in sent_alerts:
 
@@ -946,7 +928,8 @@ def analyze_match(match):
     # ==================================================
 
     events = get_events(
-        fixture_id
+        fixture_id,
+        minute
     )
 
     # ==================================================
@@ -1248,42 +1231,27 @@ def analyze_match(match):
     # SAVE HISTORY SNAPSHOT
     # ==================================================
 
-    if (
-        total_shots is not None
-        and shots_on_target is not None
-        and corners is not None
-    ):
+    data_quality = (
+        "FULL"
+        if total_shots is not None and shots_on_target is not None and corners is not None
+        else "PARTIAL"
+    )
 
-        save_match_snapshot(
-            fixture_id,
-            home,
-            away,
-            minute,
-            home_goals,
-            away_goals,
-            total_shots,
-            shots_on_target,
-            corners,
-            ou_line=ou_line,
-            ou_over=(
-                main_ou.get("over_odd")
-                if main_ou
-                else None
-            ),
-            ou_under=(
-                main_ou.get("under_odd")
-                if main_ou
-                else None
-            )
-        )
+    # V4.1: luôn lưu từ phút 30 nếu có trạng thái trận. PARTIAL vẫn hữu ích
+    # cho minute/score/events/O-U; similarity sẽ phạt các trường stats bị thiếu.
+    save_match_snapshot(
+        fixture_id, home, away, minute, home_goals, away_goals,
+        total_shots, shots_on_target, corners,
+        ou_line=ou_line,
+        ou_over=(main_ou.get("over_odd") if main_ou else None),
+        ou_under=(main_ou.get("under_odd") if main_ou else None),
+        data_quality=data_quality
+    )
+    print("DATA QUALITY:", data_quality)
 
-    else:
-
-        print(
-            "HISTORY SNAPSHOT SKIPPED:",
-            fixture_id,
-            "| LIVE STATISTICS INCOMPLETE"
-        )
+    if not alert_eligible_by_time:
+        print("COLLECTED - NO ALERT BEFORE", ALERT_FROM_MINUTE, "MIN:", fixture_id)
+        return
 
     # ==================================================
     # FINAL KÈO RUNG FILTER
@@ -1645,7 +1613,7 @@ def main():
 
     print("")
     print("================================")
-    print("BETING V4 STARTED")
+    print("BETING V4.1 STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
     print("================================")
@@ -1675,7 +1643,7 @@ def main():
         return
 
     send_telegram(
-        "BETING V4 DA KHOI DONG!\n\n"
+        "BETING V4.1 DA KHOI DONG!\n\n"
         "Live football analysis\n"
         "Live statistics\n"
         "Keo rung signal engine V4\n"
