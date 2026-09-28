@@ -1262,6 +1262,15 @@ def analyze_match(match):
         print("COLLECTED AT HT - ALERT PAUSED:", fixture_id)
         return
 
+    # Không phát cảnh báo mới từ phút 85 trở đi.
+    # Snapshot/history đã được lưu phía trên nên dữ liệu vẫn tiếp tục được thu thập.
+    if minute >= 85:
+        print(
+            "KÈO RUNG REJECT:", fixture_id,
+            "| MINUTE >= 85 - NO NEW ALERT"
+        )
+        return
+
     # ==================================================
     # FINAL KÈO RUNG FILTER
     # ==================================================
