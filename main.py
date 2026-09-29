@@ -1619,7 +1619,7 @@ def analyze_match(match):
 
     stats_strength = 0
 
-    if total_shots >= 10:
+    if total_shots >= 6:
         stats_strength += 1
 
     if shots_on_target >= 4:
@@ -1791,7 +1791,7 @@ def main():
 
     print("")
     print("================================")
-    print("BETING V4.2 STARTED")
+    print("BETING V4.3 STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
     print("================================")
@@ -1821,11 +1821,13 @@ def main():
         return
 
     send_telegram(
-        "BETING V4.2 DA KHOI DONG!\n\n"
+        "BETING V4.3 DA KHOI DONG!\n\n"
         "Live football analysis\n"
         "Live statistics\n"
         "Keo rung signal engine V4\n"
         "History 5/10/15m + no-vig odds\n"
+        "WIN/LOST daily tracking enabled\n"
+        "Alert window 45-84m\n"
         "Anti spam enabled"
     )
 
