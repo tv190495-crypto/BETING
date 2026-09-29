@@ -504,7 +504,10 @@ def select_main_ou(
             "under_odd": data["under"],
             # Chỉ line current goals + 0.5 tương đương chính xác với
             # biến cố "có ít nhất 1 bàn nữa". +0.75 là Asian split line.
-            "next_goal_compatible": abs(preferred_line - (total_goals + 0.5)) < 0.001
+            "next_goal_compatible": (
+                abs(preferred_line - (total_goals + 0.5)) < 0.001
+                or abs(preferred_line - (total_goals + 0.75)) < 0.001
+            )
         }
 
         print(
@@ -1312,8 +1315,8 @@ def analyze_match(match):
 
         return
 
-    # Historical "có bàn tiếp theo" chỉ cùng payoff event với Over G+0.5.
-    # Không dùng xác suất next-goal để định giá Asian +0.75/+1.0...
+    # Cho phép kèo rung current goals +0.5 hoặc +0.75 theo cấu hình hiện tại.
+    # Các line khác vẫn bị loại.
     if not main_ou.get("next_goal_compatible", False):
         print(
             "KÈO RUNG REJECT:", fixture_id,
@@ -1495,7 +1498,7 @@ def analyze_match(match):
     if shots_on_target >= 4:
         stats_strength += 1
 
-    if corners >= 5:
+    if corners >= 2:
         stats_strength += 1
 
     if goals_last_10 >= 1:
