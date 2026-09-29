@@ -7,8 +7,36 @@ from datetime import datetime
 API_KEY = os.getenv("API_FOOTBALL_KEY")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-HISTORY_FILE = "beting_history.json"
-RESULTS_FILE = "beting_results.json"
+
+# Persistent data directory.
+# Recommended: mount a persistent volume and set BETING_DATA_DIR to its mount path
+# (for example /data). If /data already exists, use it automatically.
+def resolve_data_dir():
+    configured = os.getenv("BETING_DATA_DIR", "").strip()
+    candidates = [configured] if configured else []
+    if "/data" not in candidates:
+        candidates.append("/data")
+    candidates.append(".")
+
+    for path in candidates:
+        if not path:
+            continue
+        try:
+            os.makedirs(path, exist_ok=True)
+            test_file = os.path.join(path, ".beting_write_test")
+            with open(test_file, "w", encoding="utf-8") as f:
+                f.write("ok")
+            os.remove(test_file)
+            return os.path.abspath(path)
+        except Exception as e:
+            print("DATA DIR UNAVAILABLE:", path, "|", e)
+
+    return os.path.abspath(".")
+
+
+DATA_DIR = resolve_data_dir()
+HISTORY_FILE = os.path.join(DATA_DIR, "beting_history.json")
+RESULTS_FILE = os.path.join(DATA_DIR, "beting_results.json")
 
 
 def load_history():
@@ -1794,6 +1822,10 @@ def main():
     print("BETING V4.3 STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
+    print("DATA DIR:", DATA_DIR)
+    print("HISTORY FILE:", HISTORY_FILE)
+    print("RESULTS FILE:", RESULTS_FILE)
+    print("PERSISTENCE MODE:", "VOLUME READY" if DATA_DIR != os.path.abspath(".") else "LOCAL/EPHEMERAL - MOUNT VOLUME FOR RESTART PERSISTENCE")
     print("================================")
 
     if not API_KEY:
