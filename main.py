@@ -1656,19 +1656,11 @@ def analyze_match(match):
     if corners >= 2:
         stats_strength += 1
 
-    if goals_last_10 >= 1:
-        stats_strength += 1
-
-    if (
-        minutes_since_goal is not None
-        and minutes_since_goal <= 10
-    ):
-        stats_strength += 1
 
     print(
         "STATS STRENGTH:",
         stats_strength,
-        "/5"
+        "/3"
     )
 
     # --------------------------------------------------
@@ -1688,7 +1680,7 @@ def analyze_match(match):
 
     combined_path = (
         signal >= 55
-        and stats_strength >= 4
+        and stats_strength >= 2
         and historical_rate >= 65
         and odds_edge >= 8
     )
