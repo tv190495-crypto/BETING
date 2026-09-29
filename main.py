@@ -8,6 +8,7 @@ API_KEY = os.getenv("API_FOOTBALL_KEY")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 HISTORY_FILE = "beting_history.json"
+RESULTS_FILE = "beting_results.json"
 
 
 def load_history():
@@ -67,7 +68,133 @@ CHECK_INTERVAL = 60
 COLLECT_FROM_MINUTE = 30
 ALERT_FROM_MINUTE = 45
 
-sent_alerts = set()
+def load_results():
+    if not os.path.exists(RESULTS_FILE):
+        return []
+    try:
+        with open(RESULTS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, list) else []
+    except Exception as e:
+        print("RESULTS LOAD ERROR:", e)
+        return []
+
+
+def save_results():
+    try:
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(alert_results, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("RESULTS SAVE ERROR:", e)
+
+
+alert_results = load_results()
+sent_alerts = {
+    r.get("fixture_id") for r in alert_results
+    if r.get("fixture_id") is not None
+}
+
+
+def daily_result_summary(day=None):
+    day = day or datetime.now().astimezone().date().isoformat()
+    rows = [r for r in alert_results if str(r.get("alert_date")) == day]
+    wins = sum(1 for r in rows if r.get("result") == "WIN")
+    half_wins = sum(1 for r in rows if r.get("result") == "HALF WIN")
+    losses = sum(1 for r in rows if r.get("result") == "LOST")
+    pending = sum(1 for r in rows if r.get("result") == "PENDING")
+    settled = wins + half_wins + losses
+    return {
+        "date": day, "total": len(rows), "settled": settled,
+        "wins": wins, "half_wins": half_wins,
+        "losses": losses, "pending": pending
+    }
+
+
+def result_message(record):
+    summary = daily_result_summary(record.get("alert_date"))
+    return (
+        f"{'✅' if record.get('result') in ('WIN', 'HALF WIN') else '❌'} BETING · {record.get('result')}\n\n"
+        f"⚽ {record.get('home')} vs {record.get('away')}\n"
+        f"📈 Over {record.get('handicap')} @ {record.get('over_odd')}\n"
+        f"⏱ Báo phút {record.get('alert_minute')}' | "
+        f"{record.get('alert_home_goals')}-{record.get('alert_away_goals')}\n"
+        f"🏁 Kết quả: {record.get('final_home_goals')}-{record.get('final_away_goals')}\n\n"
+        f"📅 TỔNG KẾT {summary['date']}\n"
+        f"✅ WIN: {summary['wins']}\n"
+        f"🟡 HALF WIN: {summary['half_wins']}\n"
+        f"❌ LOST: {summary['losses']}\n"
+        f"⏳ Chờ kết quả: {summary['pending']}"
+    )
+
+
+def settle_alert(record, final_home, final_away):
+    if record.get("result") != "PENDING":
+        return False
+
+    start_goals = int(record.get("alert_home_goals", 0)) + int(record.get("alert_away_goals", 0))
+    final_goals = int(final_home or 0) + int(final_away or 0)
+    added_goals = max(0, final_goals - start_goals)
+    line_offset = round(float(record.get("handicap", 0)) - start_goals, 2)
+
+    if abs(line_offset - 0.5) < 0.01:
+        result = "WIN" if added_goals >= 1 else "LOST"
+    elif abs(line_offset - 0.75) < 0.01:
+        if added_goals >= 2:
+            result = "WIN"
+        elif added_goals == 1:
+            result = "HALF WIN"
+        else:
+            result = "LOST"
+    else:
+        return False
+
+    record["result"] = result
+    record["settled_at"] = datetime.now().astimezone().isoformat()
+    record["final_home_goals"] = int(final_home or 0)
+    record["final_away_goals"] = int(final_away or 0)
+    record["added_goals"] = added_goals
+    save_results()
+    send_telegram(result_message(record))
+    print("BET RESULT:", record.get("fixture_id"), "|", result)
+    return True
+
+
+def process_pending_results(live_matches):
+    live_by_id = {
+        m.get("fixture", {}).get("id"): m
+        for m in live_matches
+        if m.get("fixture", {}).get("id") is not None
+    }
+
+    for record in alert_results:
+        if record.get("result") != "PENDING":
+            continue
+        fixture_id = record.get("fixture_id")
+        live = live_by_id.get(fixture_id)
+
+        if live:
+            goals = live.get("goals", {})
+            fh = goals.get("home") or 0
+            fa = goals.get("away") or 0
+            start_goals = int(record.get("alert_home_goals", 0)) + int(record.get("alert_away_goals", 0))
+            added = int(fh) + int(fa) - start_goals
+            offset = round(float(record.get("handicap", 0)) - start_goals, 2)
+            # Khi Over đã chắc chắn thắng thì chốt ngay, không cần chờ FT.
+            if (abs(offset - 0.5) < 0.01 and added >= 1) or (abs(offset - 0.75) < 0.01 and added >= 2):
+                settle_alert(record, fh, fa)
+            continue
+
+        # Trận vừa rời danh sách live: gọi 1 lần để lấy tỷ số/trạng thái cuối.
+        fixture_data = api_get("fixtures", {"id": fixture_id})
+        if not fixture_data:
+            continue
+        finished = fixture_data[0]
+        status = finished.get("fixture", {}).get("status", {}).get("short", "")
+        if status not in ("FT", "AET", "PEN"):
+            continue
+        goals = finished.get("goals", {})
+        settle_alert(record, goals.get("home") or 0, goals.get("away") or 0)
+
 
 def save_match_snapshot(
     fixture_id, home_team, away_team, minute,
@@ -1492,7 +1619,7 @@ def analyze_match(match):
 
     stats_strength = 0
 
-    if total_shots >= 15:
+    if total_shots >= 10:
         stats_strength += 1
 
     if shots_on_target >= 4:
@@ -1627,6 +1754,26 @@ def analyze_match(match):
         alert_message
     )
 
+    # Lưu tín hiệu để tự chốt WIN / HALF WIN / LOST và thống kê theo ngày.
+    alert_results.append({
+        "fixture_id": fixture_id,
+        "home": home,
+        "away": away,
+        "alert_at": datetime.now().astimezone().isoformat(),
+        "alert_date": datetime.now().astimezone().date().isoformat(),
+        "alert_minute": minute,
+        "alert_home_goals": home_goals,
+        "alert_away_goals": away_goals,
+        "handicap": handicap,
+        "over_odd": over_odd,
+        "signal": signal,
+        "historical_rate": historical_rate,
+        "historical_sample": historical_sample,
+        "odds_edge": round(odds_edge, 1),
+        "result": "PENDING"
+    })
+    save_results()
+
     # ==================================================
     # 14. MỖI TRẬN CHỈ ALERT 1 LẦN
     # ==================================================
@@ -1693,6 +1840,8 @@ def main():
                 "| LIVE MATCHES:",
                 len(matches)
             )
+
+            process_pending_results(matches)
 
             for match in matches:
 
