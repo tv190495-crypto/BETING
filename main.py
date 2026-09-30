@@ -751,30 +751,37 @@ def calculate_signal(
     elif total_goals == 1:
         signal += 5
 
-    # Cường độ sút: tối đa 25 điểm.
+    # Cường độ sút theo nhịp trận (pace-adjusted): tối đa 25 điểm.
+    # Quy đổi Shots/SOT hiện tại về nhịp 90 phút để cùng một số cú sút
+    # ở phút 50 có giá trị mạnh hơn ở phút 80. Điều này tránh dùng một
+    # ngưỡng tuyệt đối cho mọi thời điểm của trận đấu.
+    pace_minute = max(45, min(float(minute), 90.0))
+
     if total_shots is not None:
-        if total_shots >= 30:
+        projected_shots_90 = float(total_shots) * 90.0 / pace_minute
+        if projected_shots_90 >= 30:
             signal += 25
-        elif total_shots >= 25:
+        elif projected_shots_90 >= 25:
             signal += 21
-        elif total_shots >= 20:
+        elif projected_shots_90 >= 20:
             signal += 17
-        elif total_shots >= 15:
+        elif projected_shots_90 >= 15:
             signal += 12
-        elif total_shots >= 10:
+        elif projected_shots_90 >= 10:
             signal += 7
 
-    # Chất lượng cú sút: tối đa 23 điểm.
+    # SOT cũng quy đổi theo nhịp 90 phút: tối đa 23 điểm.
     if shots_on_target is not None:
-        if shots_on_target >= 12:
+        projected_sot_90 = float(shots_on_target) * 90.0 / pace_minute
+        if projected_sot_90 >= 12:
             signal += 23
-        elif shots_on_target >= 10:
+        elif projected_sot_90 >= 10:
             signal += 20
-        elif shots_on_target >= 8:
+        elif projected_sot_90 >= 8:
             signal += 17
-        elif shots_on_target >= 6:
+        elif projected_sot_90 >= 6:
             signal += 13
-        elif shots_on_target >= 4:
+        elif projected_sot_90 >= 4:
             signal += 8
 
     # Góc: proxy áp lực, tối đa 10 điểm.
