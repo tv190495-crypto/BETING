@@ -7,8 +7,36 @@ from datetime import datetime
 API_KEY = os.getenv("API_FOOTBALL_KEY")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-HISTORY_FILE = "beting_history.json"
-RESULTS_FILE = "beting_results.json"
+
+# Persistent data directory.
+# Recommended: mount a persistent volume and set BETING_DATA_DIR to its mount path
+# (for example /data). If /data already exists, use it automatically.
+def resolve_data_dir():
+    configured = os.getenv("BETING_DATA_DIR", "").strip()
+    candidates = [configured] if configured else []
+    if "/data" not in candidates:
+        candidates.append("/data")
+    candidates.append(".")
+
+    for path in candidates:
+        if not path:
+            continue
+        try:
+            os.makedirs(path, exist_ok=True)
+            test_file = os.path.join(path, ".beting_write_test")
+            with open(test_file, "w", encoding="utf-8") as f:
+                f.write("ok")
+            os.remove(test_file)
+            return os.path.abspath(path)
+        except Exception as e:
+            print("DATA DIR UNAVAILABLE:", path, "|", e)
+
+    return os.path.abspath(".")
+
+
+DATA_DIR = resolve_data_dir()
+HISTORY_FILE = os.path.join(DATA_DIR, "beting_history.json")
+RESULTS_FILE = os.path.join(DATA_DIR, "beting_results.json")
 
 
 def load_history():
@@ -723,30 +751,37 @@ def calculate_signal(
     elif total_goals == 1:
         signal += 5
 
-    # Cường độ sút: tối đa 25 điểm.
+    # Cường độ sút theo nhịp trận (pace-adjusted): tối đa 25 điểm.
+    # Quy đổi Shots/SOT hiện tại về nhịp 90 phút để cùng một số cú sút
+    # ở phút 50 có giá trị mạnh hơn ở phút 80. Điều này tránh dùng một
+    # ngưỡng tuyệt đối cho mọi thời điểm của trận đấu.
+    pace_minute = max(45, min(float(minute), 90.0))
+
     if total_shots is not None:
-        if total_shots >= 30:
+        projected_shots_90 = float(total_shots) * 90.0 / pace_minute
+        if projected_shots_90 >= 30:
             signal += 25
-        elif total_shots >= 25:
+        elif projected_shots_90 >= 25:
             signal += 21
-        elif total_shots >= 20:
+        elif projected_shots_90 >= 20:
             signal += 17
-        elif total_shots >= 15:
+        elif projected_shots_90 >= 15:
             signal += 12
-        elif total_shots >= 10:
+        elif projected_shots_90 >= 10:
             signal += 7
 
-    # Chất lượng cú sút: tối đa 23 điểm.
+    # SOT cũng quy đổi theo nhịp 90 phút: tối đa 23 điểm.
     if shots_on_target is not None:
-        if shots_on_target >= 12:
+        projected_sot_90 = float(shots_on_target) * 90.0 / pace_minute
+        if projected_sot_90 >= 12:
             signal += 23
-        elif shots_on_target >= 10:
+        elif projected_sot_90 >= 10:
             signal += 20
-        elif shots_on_target >= 8:
+        elif projected_sot_90 >= 8:
             signal += 17
-        elif shots_on_target >= 6:
+        elif projected_sot_90 >= 6:
             signal += 13
-        elif shots_on_target >= 4:
+        elif projected_sot_90 >= 4:
             signal += 8
 
     # Góc: proxy áp lực, tối đa 10 điểm.
@@ -1386,15 +1421,10 @@ def analyze_match(match):
         print("COLLECTED - NO ALERT BEFORE", ALERT_FROM_MINUTE, "MIN:", fixture_id)
         return
 
-    # Chỉ phát KÈO RUNG khi API xác nhận trận đã sang HIỆP 2.
-    # Điều này chặn toàn bộ phút 45 và 45+ bù giờ hiệp 1 (status 1H),
-    # đồng thời chặn HT. Snapshot/history vẫn đã được lưu phía trên.
+    # Chỉ phát KÈO RUNG khi API xác nhận trận đã thực sự sang HIỆP 2.
+    # Chặn 45/45+ bù giờ hiệp 1 và HT; snapshot/history vẫn đã lưu phía trên.
     if match_status != "2H":
-        print(
-            "KÈO RUNG REJECT:", fixture_id,
-            "| NOT SECOND HALF | STATUS:", match_status,
-            "| MINUTE:", minute
-        )
+        print("KÈO RUNG REJECT:", fixture_id, "| NOT SECOND HALF | STATUS:", match_status)
         return
 
     # Không phát cảnh báo mới từ phút 85 trở đi.
@@ -1633,19 +1663,11 @@ def analyze_match(match):
     if corners >= 2:
         stats_strength += 1
 
-    if goals_last_10 >= 1:
-        stats_strength += 1
-
-    if (
-        minutes_since_goal is not None
-        and minutes_since_goal <= 10
-    ):
-        stats_strength += 1
 
     print(
         "STATS STRENGTH:",
         stats_strength,
-        "/5"
+        "/3"
     )
 
     # --------------------------------------------------
@@ -1665,7 +1687,7 @@ def analyze_match(match):
 
     combined_path = (
         signal >= 55
-        and stats_strength >= 4
+        and stats_strength >= 2
         and historical_rate >= 65
         and odds_edge >= 8
     )
@@ -1799,6 +1821,10 @@ def main():
     print("BETING V4.3 STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
+    print("DATA DIR:", DATA_DIR)
+    print("HISTORY FILE:", HISTORY_FILE)
+    print("RESULTS FILE:", RESULTS_FILE)
+    print("PERSISTENCE MODE:", "VOLUME READY" if DATA_DIR != os.path.abspath(".") else "LOCAL/EPHEMERAL - MOUNT VOLUME FOR RESTART PERSISTENCE")
     print("================================")
 
     if not API_KEY:
