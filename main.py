@@ -2,6 +2,7 @@ import os
 import time
 import requests
 import json
+import threading
 from datetime import datetime
 
 API_KEY = os.getenv("API_FOOTBALL_KEY")
@@ -1814,6 +1815,42 @@ def analyze_match(match):
         fixture_id,
         "| ONE ALERT PER MATCH"
     )
+def telegram_control_loop(state):
+    """Listen only for /stop and /start without touching API-Football."""
+    offset = None
+    while True:
+        try:
+            params = {"timeout": 25}
+            if offset is not None:
+                params["offset"] = offset
+            response = requests.get(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates",
+                params=params,
+                timeout=35
+            )
+            if response.status_code != 200:
+                time.sleep(3)
+                continue
+            for update in response.json().get("result", []):
+                offset = update.get("update_id", 0) + 1
+                message = update.get("message") or update.get("edited_message") or {}
+                chat_id = str((message.get("chat") or {}).get("id", ""))
+                if chat_id != str(CHAT_ID):
+                    continue
+                text = str(message.get("text", "")).strip().split()[0].lower() if message.get("text") else ""
+                if text.startswith("/stop"):
+                    state["paused"] = True
+                    send_telegram("⏸ BETING ĐÃ TẠM DỪNG QUÉT\nAPI-Football: OFF\nGửi /start để chạy lại.")
+                    print("TELEGRAM CONTROL: STOP - API FOOTBALL PAUSED")
+                elif text.startswith("/start"):
+                    state["paused"] = False
+                    send_telegram("▶️ BETING ĐÃ BẮT ĐẦU QUÉT LẠI\nAPI-Football: ON")
+                    print("TELEGRAM CONTROL: START - API FOOTBALL RESUMED")
+        except Exception as e:
+            print("TELEGRAM CONTROL ERROR:", e)
+            time.sleep(3)
+
+
 def main():
 
     print("")
@@ -1851,6 +1888,13 @@ def main():
 
         return
 
+    control_state = {"paused": False}
+    threading.Thread(
+        target=telegram_control_loop,
+        args=(control_state,),
+        daemon=True
+    ).start()
+
     send_telegram(
         "BETING V4.3 DA KHOI DONG!\n\n"
         "Live football analysis\n"
@@ -1865,6 +1909,11 @@ def main():
     while True:
 
         try:
+
+            if control_state["paused"]:
+                print(datetime.now().strftime("%H:%M:%S"), "| BETING PAUSED - API FOOTBALL OFF")
+                time.sleep(CHECK_INTERVAL)
+                continue
 
             matches = get_live_matches()
 
