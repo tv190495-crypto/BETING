@@ -1600,9 +1600,9 @@ def analyze_match(match):
         print("KÈO RUNG REJECT:", fixture_id, "| INVALID TWO-WAY ODDS")
         return
 
-    # CHI BAO KEO KHI ODDS OVER >= 1.70
-    if over_odd < 1.70:
-        print("KÈO RUNG REJECT:", fixture_id, "| OVER ODDS BELOW 1.70:", over_odd)
+    # CHI BAO KEO KHI ODDS OVER >= 1.50
+    if over_odd < 1.50:
+        print("KÈO RUNG REJECT:", fixture_id, "| OVER ODDS BELOW 1.50:", over_odd)
         return
 
     raw_over = 1.0 / over_odd
