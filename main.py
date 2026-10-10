@@ -1597,8 +1597,18 @@ def analyze_match(match):
     # --------------------------------------------------
 
     if over_odd <= 1.0 or under_odd <= 1.0:
-        print("KÈO RUNG REJECT:", fixture_id, "| INVALID TWO-WAY ODDS")
-        return
+
+    print("KÈO RUNG REJECT:", fixture_id, "| INVALID TWO-WAY ODDS")
+
+    return
+
+    # CHỈ BÁO KÈO KHI ODDS OVER >= 1.70
+
+    if over_odd < 1.70:
+
+    print("KÈO RUNG REJECT:", fixture_id, "| OVER ODDS BELOW 1.70:", over_odd)
+
+    return
 
     raw_over = 1.0 / over_odd
     raw_under = 1.0 / under_odd
