@@ -3,11 +3,48 @@ import time
 import requests
 import json
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 API_KEY = os.getenv("API_FOOTBALL_KEY")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+CHAT_ID = (os.getenv("TELEGRAM_CHAT_ID") or "").strip()
+
+
+def parse_notify_chat_ids(raw):
+    """Numeric receive-only chat IDs. Empty/invalid IDs are never recipients."""
+    raw = raw or ""
+    for separator in (";", "\n", "\r", "\t", " "):
+        raw = raw.replace(separator, ",")
+    result = []
+    invalid = 0
+    for value in raw.split(","):
+        value = value.strip()
+        if not value:
+            continue
+        digits = value[1:] if value.startswith("-") else value
+        if not digits.isascii() or not digits.isdigit() or len(digits) > 19:
+            invalid += 1
+            continue
+        number = int(value)
+        if number == 0 or not -(2**63) < number < 2**63:
+            invalid += 1
+            continue
+        normalized = str(number)
+        if normalized not in result:
+            result.append(normalized)
+    if invalid:
+        print("TELEGRAM NOTIFY CONFIG: ignored invalid chat IDs:", invalid)
+    return tuple(result)
+
+
+# Notifications only; this list is NEVER consulted to authorize commands.
+NOTIFY_CHAT_IDS = parse_notify_chat_ids(os.getenv("TELEGRAM_NOTIFY_CHAT_IDS", ""))
+
+
+def telegram_targets(admin_only=False):
+    ids = [CHAT_ID] if admin_only else [CHAT_ID, *NOTIFY_CHAT_IDS]
+    return tuple(dict.fromkeys(value for value in ids if value))
 
 # Persistent data directory.
 # Recommended: mount a persistent volume and set BETING_DATA_DIR to its mount path
@@ -225,11 +262,7 @@ def process_pending_results(live_matches):
         settle_alert(record, goals.get("home") or 0, goals.get("away") or 0)
 
 
-def save_match_snapshot(
-    fixture_id, home_team, away_team, minute,
-    home_goals, away_goals, total_shots, total_sot, total_corners,
-    ou_line=None, ou_over=None, ou_under=None, data_quality="FULL"
-):
+def save_match_snapshot( fixture_id, home_team, away_team, minute, home_goals, away_goals, total_shots, total_sot, total_corners, ou_line=None, ou_over=None, ou_under=None, data_quality="FULL" ):
     snapshot = {
         "timestamp": datetime.now().astimezone().isoformat(),
         "fixture_id": fixture_id,
@@ -299,27 +332,40 @@ def api_get(endpoint, params=None):
         return []
 
 
-def send_telegram(message):
-
+def _send_telegram_to(chat_id, message):
+    """One recipient failing must not suppress another; no ambiguous retries."""
     try:
-
         response = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            data={
-                "chat_id": CHAT_ID,
-                "text": message
-            },
+            data={"chat_id": chat_id, "text": message},
             timeout=20
         )
-
-        print("TELEGRAM:", response.status_code)
-
         if response.status_code != 200:
-            print("TELEGRAM ERROR:", response.text[:500])
-
+            print("TELEGRAM DELIVERY FAILED:", chat_id, "| HTTP", response.status_code)
+            return {"status": "failed", "http_status": response.status_code}
+        body = response.json()
+        if body.get("ok") is not True:
+            print("TELEGRAM DELIVERY REJECTED:", chat_id)
+            return {"status": "failed"}
+        print("TELEGRAM DELIVERY SENT:", chat_id)
+        return {"status": "sent", "message_id": (body.get("result") or {}).get("message_id")}
     except Exception as e:
+        # Exception strings can contain the request URL and bot token.
+        print("TELEGRAM DELIVERY UNCERTAIN:", chat_id, "|", type(e).__name__)
+        return {"status": "uncertain"}
 
-        print("TELEGRAM ERROR:", e)
+
+def send_telegram(message, *, admin_only=False):
+    """Broadcast alerts/results, or send control replies to the admin only."""
+    targets = telegram_targets(admin_only=admin_only)
+    if not targets:
+        return {}
+    if len(targets) == 1:
+        return {targets[0]: _send_telegram_to(targets[0], message)}
+    # A blocked recipient does not hold up delivery to the admin/other recipients.
+    with ThreadPoolExecutor(max_workers=min(4, len(targets))) as pool:
+        futures = {chat_id: pool.submit(_send_telegram_to, chat_id, message) for chat_id in targets}
+        return {chat_id: future.result() for chat_id, future in futures.items()}
 
 
 def get_live_matches():
@@ -572,10 +618,7 @@ def get_live_ou_market(odds):
     )
 
     return None
-def select_main_ou(
-    ou_market,
-    total_goals
-):
+def select_main_ou( ou_market, total_goals ):
 
     if not ou_market:
         return None
@@ -616,12 +659,12 @@ def select_main_ou(
     #
     # Ví dụ:
     # Tổng bàn = 1
-    #   Ưu tiên O/U 1.5
-    #   Nếu không có -> O/U 1.75
+    # Ưu tiên O/U 1.5
+    # Nếu không có -> O/U 1.75
     #
     # Tổng bàn = 2
-    #   Ưu tiên O/U 2.5
-    #   Nếu không có -> O/U 2.75
+    # Ưu tiên O/U 2.5
+    # Nếu không có -> O/U 2.75
     # ==================================================
 
     total_goals = float(
@@ -720,11 +763,7 @@ def get_stat_value(stats, team_name, stat_type):
     return 0
 
 
-def calculate_signal(
-    minute, total_goals, total_shots, shots_on_target, corners,
-    minutes_since_goal=None, goals_last_5=0, goals_last_10=0,
-    goals_last_15=0, goals_last_20=0
-):
+def calculate_signal( minute, total_goals, total_shots, shots_on_target, corners, minutes_since_goal=None, goals_last_5=0, goals_last_10=0, goals_last_15=0, goals_last_20=0 ):
     # V4: score cường độ, không phải xác suất %.
     signal = 0
 
@@ -823,11 +862,7 @@ def _safe_float(value):
 
 
 def _future_goal_outcome(record, horizon=None):
-    """
-    True  = có bàn sau snapshot (trong horizon nếu horizon != None)
-    False = đủ dữ liệu theo dõi nhưng không có bàn
-    None  = chưa đủ dữ liệu để kết luận âm tính
-    """
+    """ True = có bàn sau snapshot (trong horizon nếu horizon != None) False = đủ dữ liệu theo dõi nhưng không có bàn None = chưa đủ dữ liệu để kết luận âm tính """
     fixture_id = record.get("fixture_id")
     minute_now = _safe_float(record.get("minute"))
     goals_now = _safe_float(record.get("total_goals"))
@@ -877,10 +912,7 @@ def _rate_for_horizon(records, horizon):
     return round(rate, 1), len(known)
 
 
-def get_historical_similarity(
-    minute, total_goals, total_shots, shots_on_target, corners,
-    ou_line=None, current_fixture_id=None, max_matches=50
-):
+def get_historical_similarity( minute, total_goals, total_shots, shots_on_target, corners, ou_line=None, current_fixture_id=None, max_matches=50 ):
     if not history_data:
         return {
             "sample_size": 0, "goal_rate": None,
@@ -1703,8 +1735,8 @@ def analyze_match(match):
         "SIGNAL PATH:",
         "STRONG="
         , strong_signal_path,
-        "| COMBINED="
-        , combined_path
+        "| COMBINED=",
+        combined_path
     )
 
     if not (
@@ -1821,8 +1853,32 @@ def analyze_match(match):
         fixture_id,
         "| ONE ALERT PER MATCH"
     )
+def handle_telegram_control(message, state):
+    """Only the original TELEGRAM_CHAT_ID may control the bot."""
+    chat_id = str((message.get("chat") or {}).get("id", ""))
+    if not CHAT_ID or chat_id != CHAT_ID:
+        return False
+    words = str(message.get("text") or "").strip().split()
+    command = words[0].split("@", 1)[0].lower() if words else ""
+    if command == "/stop":
+        state["paused"] = True
+        send_telegram("⏸ BETING ĐÃ TẠM DỪNG QUÉT\nAPI-Football: OFF\nGửi /start để chạy lại.", admin_only=True)
+        print("TELEGRAM CONTROL: STOP - API FOOTBALL PAUSED")
+    elif command == "/start":
+        state["paused"] = False
+        send_telegram("▶️ BETING ĐÃ BẮT ĐẦU QUÉT LẠI\nAPI-Football: ON", admin_only=True)
+        print("TELEGRAM CONTROL: START - API FOOTBALL RESUMED")
+    elif command == "/notifytest":
+        results = send_telegram("🔔 BETING · KIỂM TRA NHẬN THÔNG BÁO\nTin thử kết nối; không phải tín hiệu kèo.\nNick nhận thêm chỉ nhận thông báo, không có quyền điều khiển bot.")
+        sent = sum(item.get("status") == "sent" for item in results.values())
+        send_telegram(f"Kiểm tra Telegram: gửi thành công {sent}/{len(results)} nơi nhận.\nNếu chưa nhận: nick mới mở đúng bot, bấm Start và kiểm tra Chat ID.", admin_only=True)
+    else:
+        return False
+    return True
+
+
 def telegram_control_loop(state):
-    """Listen only for /stop and /start without touching API-Football."""
+    """Listen to admin commands only, without touching API-Football."""
     offset = None
     while True:
         try:
@@ -1840,20 +1896,9 @@ def telegram_control_loop(state):
             for update in response.json().get("result", []):
                 offset = update.get("update_id", 0) + 1
                 message = update.get("message") or update.get("edited_message") or {}
-                chat_id = str((message.get("chat") or {}).get("id", ""))
-                if chat_id != str(CHAT_ID):
-                    continue
-                text = str(message.get("text", "")).strip().split()[0].lower() if message.get("text") else ""
-                if text.startswith("/stop"):
-                    state["paused"] = True
-                    send_telegram("⏸ BETING ĐÃ TẠM DỪNG QUÉT\nAPI-Football: OFF\nGửi /start để chạy lại.")
-                    print("TELEGRAM CONTROL: STOP - API FOOTBALL PAUSED")
-                elif text.startswith("/start"):
-                    state["paused"] = False
-                    send_telegram("▶️ BETING ĐÃ BẮT ĐẦU QUÉT LẠI\nAPI-Football: ON")
-                    print("TELEGRAM CONTROL: START - API FOOTBALL RESUMED")
+                handle_telegram_control(message, state)
         except Exception as e:
-            print("TELEGRAM CONTROL ERROR:", e)
+            print("TELEGRAM CONTROL ERROR:", type(e).__name__)
             time.sleep(3)
 
 
@@ -1861,7 +1906,7 @@ def main():
 
     print("")
     print("================================")
-    print("BETING V4.3 STARTED")
+    print("BETING V4.3 MULTI-NOTIFY STARTED")
     print("================================")
     print("MODE: LIVE FOOTBALL ANALYSIS")
     print("DATA DIR:", DATA_DIR)
@@ -1902,14 +1947,17 @@ def main():
     ).start()
 
     send_telegram(
-        "BETING V4.3 DA KHOI DONG!\n\n"
+        "BETING V4.3 MULTI-NOTIFY DA KHOI DONG!\n\n"
         "Live football analysis\n"
         "Live statistics\n"
         "Keo rung signal engine V4\n"
         "History 5/10/15m + no-vig odds\n"
         "WIN/LOST daily tracking enabled\n"
         "Alert window 45-84m\n"
-        "Anti spam enabled"
+        "Anti spam enabled\n"
+        "Thông báo nhiều nick; chỉ nick quản trị được điều khiển.\n"
+        "Gửi /notifytest để kiểm tra nơi nhận.",
+        admin_only=True
     )
 
     while True:
